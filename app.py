@@ -44,7 +44,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🍬 JENNY对账机器人 · 甜蜜版")
+st.title("🍬 JENNY对账机器人")
 st.markdown("""
 <div style="background:#FFE4E1; padding:15px; border-radius:20px; margin-bottom:20px;">
 🌸 <b>使用流程：</b><br>
@@ -297,7 +297,7 @@ def parse_system_bill(file):
 
         if '金额' not in df.columns:
             df['金额'] = pd.Series(0.0, index=df.index)
-        df['金额'] = pd.to_numeric(df['金额'], errors='coerce').fillna(0)
+        df['金额'] = pd.to_numeric(df['金額'], errors='coerce').fillna(0)
 
         frames.append(df)
 
@@ -379,7 +379,6 @@ if st.button("✨ 开始自动对账", type="primary"):
         st.error("❌ 请至少上传一个日记账文件！")
     else:
         with st.spinner('🍬 JENNY正在甜蜜核对，请稍候...'):
-            # 构建客户字典（渠道和客户信息）
             fb_dict = {}
             for _, row in fb_customers.iterrows():
                 cid = str(row['账号ID']).strip()
@@ -397,19 +396,16 @@ if st.button("✨ 开始自动对账", type="primary"):
                 if cid:
                     tt_dict[cid] = {'name': cname, 'channel': channel, 'client': client, 'plat': 'TT'}
 
-            # 读取系统账单
             sys_df = load_system_bills(system_files)
             if sys_df.empty:
                 st.error("系统账单经处理后无有效数据")
                 st.stop()
             sys_df['来源平台'] = '系统账单'
 
-            # 读取日记账
             fb_jnl = load_journal(fb_journal_files, "FB日记账")
             tt_jnl = load_journal(tt_journal_files, "TT日记账")
             journal = pd.concat([fb_jnl, tt_jnl], ignore_index=True)
 
-            # 匹配系统账（平台、渠道、客户）
             matched_platforms = []
             match_channels = []
             match_clients = []
@@ -438,7 +434,6 @@ if st.button("✨ 开始自动对账", type="primary"):
                 st.error("匹配后无有效系统记录，对账中止")
                 st.stop()
 
-            # ---------- 修复关键点：日记账的渠道也从客户档案中获取 ----------
             def get_channel_from_dict(acc_id):
                 acc_str = str(acc_id).strip()
                 if acc_str in fb_dict:
@@ -457,9 +452,7 @@ if st.button("✨ 开始自动对账", type="primary"):
 
             if not journal.empty:
                 journal['渠道'] = journal['账号ID'].apply(get_channel_from_dict)
-                # 日记账的客户列优先使用自身的“客户”字段，若为空则从档案补充
                 if '客户' in journal.columns:
-                    # 若已有客户列，保留，但空值用档案填充（可选）
                     mask_empty = journal['客户'].isna() | (journal['客户'] == '')
                     journal.loc[mask_empty, '客户'] = journal.loc[mask_empty, '账号ID'].apply(get_client_from_dict)
                 else:
@@ -467,7 +460,6 @@ if st.button("✨ 开始自动对账", type="primary"):
             else:
                 journal = pd.DataFrame(columns=['账号ID', '账号名称', '时间', '交易号', '金额', '类型', '来源平台', '渠道', '客户'])
 
-            # 时间范围自动计算
             if not use_custom_date:
                 time_series = []
                 for df in [sys_df, journal]:
@@ -482,10 +474,7 @@ if st.button("✨ 开始自动对账", type="primary"):
                 else:
                     start_date = datetime(2026, 1, 1).date()
                     end_date = datetime.today().date()
-            else:
-                use_custom_date = True
 
-            # 时间过滤
             for idx, df in enumerate([sys_df, journal]):
                 if not df.empty and '时间' in df.columns:
                     df['时间_dt'] = pd.to_datetime(df['时间'], errors='coerce')
@@ -501,7 +490,6 @@ if st.button("✨ 开始自动对账", type="primary"):
                 st.warning("筛选时间范围后，系统账单无数据，无法对账")
                 st.stop()
 
-            # 渠道筛选（现在日记账也有正确的渠道列）
             if '全部渠道' not in selected_channels and len(selected_channels) > 0:
                 filter_channels = set()
                 taidong_set = {'北京齐风', '中顺建业', '希瑞福', '北京和海坤鑫'}
@@ -519,7 +507,6 @@ if st.button("✨ 开始自动对账", type="primary"):
                 st.warning("筛选渠道后，系统账单无数据，无法对账")
                 st.stop()
 
-            # 客户筛选
             if selected_clients:
                 if '客户' in sys_df.columns:
                     sys_df = sys_df[sys_df['客户'].isin(selected_clients)]
@@ -530,7 +517,6 @@ if st.button("✨ 开始自动对账", type="primary"):
                 st.warning("筛选客户后，系统账单无数据，无法对账")
                 st.stop()
 
-            # 平台范围过滤
             if platform_scope == "仅 Facebook":
                 sys_df = sys_df[sys_df['所属平台'] == 'FB']
                 journal = journal[journal['来源平台'] == 'FB日记账'] if not journal.empty else journal
@@ -542,7 +528,6 @@ if st.button("✨ 开始自动对账", type="primary"):
                 st.warning("在当前平台范围内，系统账单无数据，无法对账")
                 st.stop()
 
-            # 最终清洗与格式化
             for df in [sys_df, journal]:
                 if not df.empty:
                     if '时间' in df.columns:
@@ -555,7 +540,6 @@ if st.button("✨ 开始自动对账", type="primary"):
                     else:
                         df['金额'] = 0.0
 
-            # 主键生成
             def gen_key_sys(row):
                 plat = row['所属平台']
                 acc_id = str(row['账号ID']).strip()
@@ -596,7 +580,6 @@ if st.button("✨ 开始自动对账", type="primary"):
             if not journal.empty:
                 journal['主键'] = journal.apply(gen_key_jnl, axis=1)
 
-            # 对账计算
             if not journal.empty:
                 sys_dup = sys_df[sys_df.duplicated('主键', keep=False)]
                 jnl_dup = journal[journal.duplicated('主键', keep=False)]
@@ -613,7 +596,6 @@ if st.button("✨ 开始自动对账", type="primary"):
                 missing_in_s = journal
                 amt_diff = typ_diff = pd.DataFrame()
 
-            # 生成报告
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine='openpyxl') as writer:
                 summary = pd.DataFrame({
@@ -630,10 +612,23 @@ if st.button("✨ 开始自动对账", type="primary"):
                 sys_dup.to_excel(writer, sheet_name="5.系统重复", index=False)
                 jnl_dup.to_excel(writer, sheet_name="6.日记账重复", index=False)
 
-            st.success("🎉 对账完成！请下载甜蜜报告～")
+            # 动态报告文件名
+            today_str = datetime.today().strftime("%Y%m%d")
+            client_str = "_".join(selected_clients) if selected_clients else "全部客户"
+            if '全部渠道' in selected_channels or not selected_channels:
+                channel_str = "全部渠道"
+            else:
+                channel_str = "_".join(selected_channels)
+            if platform_scope == "全部平台":
+                plat_str = "全部平台"
+            else:
+                plat_str = platform_scope.replace("仅 ", "")
+            report_name = f"{client_str}-{channel_str}-{plat_str}-{today_str}对账报告.xlsx"
+
+            st.success("🎉 对账完成！请下载报告～")
             st.download_button(
                 label="📥 下载对账报告",
                 data=output.getvalue(),
-                file_name="JENNY对账报告.xlsx",
+                file_name=report_name,
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
