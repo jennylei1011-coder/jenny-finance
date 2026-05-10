@@ -78,7 +78,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🍬 JENNY对账机器人 ")
+st.title("🍬 JENNY对账机器人 · 甜蜜版")
 st.markdown("""
 <div style="background:#FFE4E1; padding:15px; border-radius:20px; margin-bottom:20px;">
 🌸 <b>使用流程：</b><br>
@@ -475,10 +475,18 @@ if st.button("✨ 开始自动对账", type="primary"):
                 st.error("匹配后无有效系统记录，对账中止")
                 st.stop()
 
-            # 日记账客户列已在 load_journal 中保留
-            # 计算时间范围（自动）
+            # 日记账的渠道与客户：使用自身的“客户”列，确保列存在
+            if not journal.empty:
+                if '客户' in journal.columns:
+                    journal['渠道'] = journal['客户']
+                else:
+                    journal['渠道'] = ''
+            else:
+                # 若日记账为空，直接创建空 DataFrame 并保持列结构一致
+                journal = pd.DataFrame(columns=['账号ID', '账号名称', '时间', '交易号', '金额', '类型', '来源平台', '渠道', '客户'])
+
+            # 时间范围自动计算
             if not use_custom_date:
-                # 提取系统账和日记账的有效时间
                 time_series = []
                 for df in [sys_df, journal]:
                     if not df.empty and '时间' in df.columns:
@@ -493,13 +501,17 @@ if st.button("✨ 开始自动对账", type="primary"):
                     start_date = datetime(2026, 1, 1).date()
                     end_date = datetime.today().date()
 
-            # 时间范围过滤
-            for df in [sys_df, journal]:
+            # 时间范围过滤（必须正确赋值回变量）
+            for idx, df in enumerate([sys_df, journal]):
                 if not df.empty and '时间' in df.columns:
                     df['时间_dt'] = pd.to_datetime(df['时间'], errors='coerce')
                     mask = (df['时间_dt'].notna()) & (df['时间_dt'].dt.date >= start_date) & (df['时间_dt'].dt.date <= end_date)
                     df = df[mask].copy()
                     df.drop(columns=['时间_dt'], inplace=True)
+                    if idx == 0:
+                        sys_df = df
+                    else:
+                        journal = df
 
             if sys_df.empty:
                 st.warning("筛选时间范围后，系统账单无数据，无法对账")
@@ -514,8 +526,10 @@ if st.button("✨ 开始自动对账", type="primary"):
                         filter_channels.update(taidong_set)
                     else:
                         filter_channels.add(ch)
-                sys_df = sys_df[sys_df['渠道'].isin(filter_channels)]
-                if not journal.empty:
+                # 确保列存在
+                if '渠道' in sys_df.columns:
+                    sys_df = sys_df[sys_df['渠道'].isin(filter_channels)]
+                if not journal.empty and '渠道' in journal.columns:
                     journal = journal[journal['渠道'].isin(filter_channels)]
 
             if sys_df.empty:
@@ -524,8 +538,9 @@ if st.button("✨ 开始自动对账", type="primary"):
 
             # 独立客户筛选
             if selected_clients:
-                sys_df = sys_df[sys_df['客户'].isin(selected_clients)]
-                if not journal.empty:
+                if '客户' in sys_df.columns:
+                    sys_df = sys_df[sys_df['客户'].isin(selected_clients)]
+                if not journal.empty and '客户' in journal.columns:
                     journal = journal[journal['客户'].isin(selected_clients)]
 
             if sys_df.empty:
@@ -632,7 +647,7 @@ if st.button("✨ 开始自动对账", type="primary"):
                 sys_dup.to_excel(writer, sheet_name="5.系统重复", index=False)
                 jnl_dup.to_excel(writer, sheet_name="6.日记账重复", index=False)
 
-            st.success("🎉 对账完成！请下载报告～")
+            st.success("🎉 对账完成！请下载甜蜜报告～")
             st.download_button(
                 label="📥 下载对账报告",
                 data=output.getvalue(),
