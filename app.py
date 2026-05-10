@@ -9,12 +9,10 @@ warnings.filterwarnings('ignore')
 
 st.set_page_config(page_title="🌸 JENNY对账机器人", layout="wide")
 
-# ========== 甜美可爱主题（简洁字体） ==========
+# ========== 甜美可爱主题 ==========
 st.markdown("""
 <style>
-    .main, .stApp {
-        background: linear-gradient(135deg, #FFF0F5 0%, #FFE4E1 100%);
-    }
+    .main, .stApp { background: linear-gradient(135deg, #FFF0F5 0%, #FFE4E1 100%); }
     h1 { color: #FF69B4 !important; text-shadow: 2px 2px 4px rgba(255,182,193,0.5); }
     h2, h3, h4 { color: #DB7093 !important; }
     .stFileUploader, .stSelectbox, .stMultiSelect, .stButton>button, .stDateInput {
@@ -186,7 +184,7 @@ if fb_customers is not None or tt_customers is not None:
     channel_options += sorted(all_channels)
 
 selected_channels = st.multiselect(
-    "📌 选择渠道（可多选，默认全部；若需对全部渠道对账，请保持选中“全部渠道”或清空选项）",
+    "📌 选择渠道（可多选，默认全部）",
     options=channel_options,
     default=['全部渠道']
 )
@@ -219,7 +217,7 @@ else:
     end_date = None
     st.info("将自动使用系统账和日记账中最早的日期作为开始，最晚的日期作为结束。")
 
-# ========== 系统账单处理函数（已修复） ==========
+# ========== 系统账单处理函数 ==========
 def parse_system_bill(file):
     xls = pd.ExcelFile(file)
     frames = []
@@ -237,6 +235,7 @@ def parse_system_bill(file):
                 is_type_system = True
 
         if is_type_system:
+            # ----- type 系统特殊处理 -----
             df['类型_clean'] = df['类型'].str.lower().str.strip()
             allowed = ['account_topup', 'refund from ad account']
             df = df[df['类型_clean'].isin(allowed)]
@@ -272,7 +271,7 @@ def parse_system_bill(file):
             df.drop(columns=['类型_clean'], inplace=True)
 
         else:
-            # ===== 修复开始：非type系统账单处理 =====
+            # ----- 普通系统账单处理 -----
             df = robust_clean_time(df)
             pending_cols = [c for c in df.columns if 'pending' in str(c).lower()]
             if pending_cols:
@@ -288,7 +287,7 @@ def parse_system_bill(file):
             elif any(kw in sheet_low for kw in ['减款', '清零', 'refund']):
                 df['类型'] = '清零'
 
-            # 统一类型名称：将“减款”也转换为“清零”
+            # 统一类型文字：减款 -> 清零
             if '类型' in df.columns:
                 df['类型'] = df['类型'].str.strip().str.lower()
                 df['类型'] = df['类型'].replace({
@@ -298,16 +297,14 @@ def parse_system_bill(file):
                 })
                 df['类型'] = df['类型'].apply(lambda x: x if x in ['充值', '清零'] else '未知')
 
-            # 金额处理：将数值转为正数，后续根据类型赋予符号
+            # 金额取绝对值，清零再转负（确保清零为负，充值为正）
             if '金额' in df.columns:
                 df['金额'] = pd.to_numeric(df['金额'], errors='coerce').fillna(0).abs()
+                df.loc[df['类型'] == '清零', '金额'] = -df.loc[df['类型'] == '清零', '金额']
             else:
                 df['金额'] = 0.0
 
-            # 清零类型金额取负
-            df.loc[df['类型'] == '清零', '金额'] = -df.loc[df['类型'] == '清零', '金额']
-
-
+        # 通用：申请状态过滤
         if '申请状态' in df.columns:
             valid_status = df['申请状态'].str.strip().str.lower().isin(['成功', '已完成'])
             df = df[valid_status]
@@ -359,11 +356,11 @@ def load_journal(files, source):
             df['类型'] = df['类型'].apply(lambda x: x if x in ['充值', '清零'] else '未知')
 
         if '金额' in df.columns:
-            df['金额'] = pd.to_numeric(df['金额'], errors='coerce').fillna(0)
+            df['金额'] = pd.to_numeric(df['金额'], errors='coerce').fillna(0).abs()
+            df.loc[df['类型'] == '清零', '金额'] = -df.loc[df['类型'] == '清零', '金额']
         else:
             df['金额'] = pd.Series(0.0, index=df.index)
 
-        df.loc[df['类型'] == '清零', '金额'] = -df.loc[df['类型'] == '清零', '金额'].abs()
         frames.append(df)
     return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
 
@@ -423,6 +420,7 @@ if st.button("✨ 开始自动对账", type="primary"):
             tt_jnl = load_journal(tt_journal_files, "TT日记账")
             journal = pd.concat([fb_jnl, tt_jnl], ignore_index=True)
 
+            # 匹配系统账
             matched_platforms = []
             match_channels = []
             match_clients = []
@@ -451,6 +449,7 @@ if st.button("✨ 开始自动对账", type="primary"):
                 st.error("匹配后无有效系统记录，对账中止")
                 st.stop()
 
+            # 日记账的渠道和客户从档案字典获取
             def get_channel_from_dict(acc_id):
                 acc_str = str(acc_id).strip()
                 if acc_str in fb_dict:
@@ -477,6 +476,7 @@ if st.button("✨ 开始自动对账", type="primary"):
             else:
                 journal = pd.DataFrame(columns=['账号ID', '账号名称', '时间', '交易号', '金额', '类型', '来源平台', '渠道', '客户'])
 
+            # 时间范围
             if not use_custom_date:
                 time_series = []
                 for df in [sys_df, journal]:
@@ -507,6 +507,7 @@ if st.button("✨ 开始自动对账", type="primary"):
                 st.warning("筛选时间范围后，系统账单无数据，无法对账")
                 st.stop()
 
+            # 渠道筛选
             if '全部渠道' not in selected_channels and len(selected_channels) > 0:
                 filter_channels = set()
                 taidong_set = {'北京齐风', '中顺建业', '希瑞福', '北京和海坤鑫'}
@@ -524,6 +525,7 @@ if st.button("✨ 开始自动对账", type="primary"):
                 st.warning("筛选渠道后，系统账单无数据，无法对账")
                 st.stop()
 
+            # 客户筛选
             if selected_clients:
                 if '客户' in sys_df.columns:
                     sys_df = sys_df[sys_df['客户'].isin(selected_clients)]
@@ -534,6 +536,7 @@ if st.button("✨ 开始自动对账", type="primary"):
                 st.warning("筛选客户后，系统账单无数据，无法对账")
                 st.stop()
 
+            # 平台筛选
             if platform_scope == "仅 Facebook":
                 sys_df = sys_df[sys_df['所属平台'] == 'FB']
                 journal = journal[journal['来源平台'] == 'FB日记账'] if not journal.empty else journal
@@ -545,17 +548,18 @@ if st.button("✨ 开始自动对账", type="primary"):
                 st.warning("在当前平台范围内，系统账单无数据，无法对账")
                 st.stop()
 
-            # 最终清洗：格式化时间，金额保留两位小数（符号已经统一处理）
+            # 最终清洗：格式化时间
             for df in [sys_df, journal]:
                 if not df.empty:
                     if '时间' in df.columns:
                         df['时间'] = pd.to_datetime(df['时间'], errors='coerce', format='mixed').dt.strftime("%Y-%m-%d %H:%M").fillna("")
+                    # 金额已经处理完毕，只保留两位小数
                     if '金额' in df.columns:
                         df['金额'] = pd.to_numeric(df['金额'], errors='coerce').fillna(0).round(2)
                     else:
                         df['金额'] = 0.0
 
-            # 主键生成（不变）
+            # 主键生成
             def gen_key_sys(row):
                 plat = row['所属平台']
                 acc_id = str(row['账号ID']).strip()
@@ -596,6 +600,7 @@ if st.button("✨ 开始自动对账", type="primary"):
             if not journal.empty:
                 journal['主键'] = journal.apply(gen_key_jnl, axis=1)
 
+            # 对账计算（关键修复：金额比较按类型区分）
             if not journal.empty:
                 sys_dup = sys_df[sys_df.duplicated('主键', keep=False)]
                 jnl_dup = journal[journal.duplicated('主键', keep=False)]
@@ -604,8 +609,27 @@ if st.button("✨ 开始自动对账", type="primary"):
                 sys_u = sys_df.drop_duplicates('主键')
                 jnl_u = journal.drop_duplicates('主键')
                 merged = pd.merge(sys_u, jnl_u, on='主键', suffixes=('_系统', '_日记账'), how='inner')
-                # 金额比对：使用绝对值，忽略正负号
-                amt_diff = merged[abs(merged['金额_系统'] - merged['金额_日记账']) > 0.001]
+
+                # ---- 金额比对 ----
+                def is_amount_match(row):
+                    a_sys = row['金额_系统']
+                    a_jnl = row['金额_日记账']
+                    t_sys = row['类型_系统']
+                    t_jnl = row['类型_日记账']
+                    if t_sys != t_jnl:
+                        # 类型不同，直接交由类型不符去检查，金额不算差异
+                        return True
+                    if t_sys == '清零':
+                        # 清零类型只比较绝对值
+                        return abs(a_sys - a_jnl) < 0.001
+                    else:
+                        # 充值类型直接比较
+                        return abs(a_sys - a_jnl) < 0.001
+
+                merged['_amt_match'] = merged.apply(is_amount_match, axis=1)
+                amt_diff = merged[~merged['_amt_match']]
+                merged.drop(columns=['_amt_match'], inplace=True)
+
                 typ_diff = merged[merged['类型_系统'] != merged['类型_日记账']]
             else:
                 sys_dup = jnl_dup = pd.DataFrame()
@@ -613,6 +637,7 @@ if st.button("✨ 开始自动对账", type="primary"):
                 missing_in_s = journal
                 amt_diff = typ_diff = pd.DataFrame()
 
+            # 生成报告
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine='openpyxl') as writer:
                 summary = pd.DataFrame({
