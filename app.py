@@ -55,35 +55,63 @@ with col_cus1:
 with col_cus2:
     tt_customer_files = st.file_uploader("🟠 上传 TT 客户档案（可多选）", type=["xlsx", "xls"], accept_multiple_files=True, key="tt_customer")
 
+# =========================
+# 通用工具函数
+# =========================
+def normalize_columns(df):
+    """智能列名映射，将各种同义列统一为标准名"""
+    mapping = {
+        '账号ID': ['账号ID', '广告账户', '账户ID', 'meta_id', 'account_id'],
+        '账号名称': ['账号名称', '账户名称', 'account_name'],
+        '交易号': ['交易号', '申请ID', 'transaction_id'],
+        '金额': ['金额', '充值金额', '操作金额', '操作参数', 'amount_paid', 'account_amount'],
+        '类型': ['操作', '类型', '操作类型', 'type'],
+        '申请状态': ['申请状态', '代理状态']
+    }
+    rename = {}
+    for std, candidates in mapping.items():
+        for c in candidates:
+            for col in df.columns:
+                if col.lower() == c.lower():
+                    rename[col] = std
+                    break
+    return df.rename(columns=rename)
+
+def clean_text_columns(df, cols=['账号ID', '账号名称', '交易号']):
+    """强制转为文本并清洗空格、.0尾巴等"""
+    for col in cols:
+        if col in df.columns:
+            df[col] = df[col].astype(str).str.strip()
+            df[col] = df[col].str.replace(r'\.0$', '', regex=True)
+            df[col] = df[col].replace({'nan': '', 'None': '', '<NA>': ''})
+    return df
+
 def load_multiple_excel(files, platform_label):
-    """读取并合并多个Excel，同时清洗账号ID和名称为纯文本"""
+    """读取并合并多个客户档案文件，应用列名映射与清洗"""
     if not files:
         return pd.DataFrame()
     frames = []
     for f in files:
-        # 强制以文本形式读取，避免数字自动化
         df = pd.read_excel(f, dtype=str)
-        if not df.empty:
-            df['来源档案平台'] = platform_label
-            frames.append(df)
+        if df.empty:
+            continue
+        # 1. 列名映射
+        df = normalize_columns(df)
+        # 2. 添加内部标记（记忆用途）
+        df['来源档案平台'] = platform_label
+        frames.append(df)
     if not frames:
         return pd.DataFrame()
     df_all = pd.concat(frames, ignore_index=True)
-
-    # 清洗账号ID和账号名称（确保文本一致性）
-    for col in ['账号ID', '账号名称']:
-        if col in df_all.columns:
-            # 转为字符串，去掉头尾空格，去除末尾的 .0 （Excel浮点数尾巴）
-            df_all[col] = df_all[col].astype(str).str.strip()
-            df_all[col] = df_all[col].str.replace(r'\.0$', '', regex=True)
-            df_all[col] = df_all[col].replace({'nan': '', 'None': '', '<NA>': ''})
+    # 3. 清洗关键列
+    df_all = clean_text_columns(df_all, ['账号ID', '账号名称'])
     return df_all
 
 # FB客户档案记忆
 if fb_customer_files:
     fb_customers = load_multiple_excel(fb_customer_files, "FB")
     if not all(col in fb_customers.columns for col in ['账号ID', '账号名称']):
-        st.error("❌ FB客户档案缺少“账号ID”或“账号名称”列，请检查文件。")
+        st.error("❌ FB客户档案缺少“账号ID”或“账号名称”列（识别后的标准列），请检查文件。")
         st.stop()
     st.session_state["fb_customers"] = fb_customers
     st.success(f"🌸 FB客户档案已更新（共 {len(fb_customers)} 条）")
@@ -97,7 +125,7 @@ else:
 if tt_customer_files:
     tt_customers = load_multiple_excel(tt_customer_files, "TT")
     if not all(col in tt_customers.columns for col in ['账号ID', '账号名称']):
-        st.error("❌ TT客户档案缺少“账号ID”或“账号名称”列，请检查文件。")
+        st.error("❌ TT客户档案缺少“账号ID”或“账号名称”列（识别后的标准列），请检查文件。")
         st.stop()
     st.session_state["tt_customers"] = tt_customers
     st.success(f"🌸 TT客户档案已更新（共 {len(tt_customers)} 条）")
@@ -122,37 +150,8 @@ with col_j2:
 platform_scope = st.selectbox("🔍 选择本次对账平台范围", ["全部平台", "仅 Facebook", "仅 TikTok"])
 
 # =========================
-# 核心数据处理函数
+# 系统账单与日记账处理函数
 # =========================
-
-def normalize_columns(df):
-    """智能列名映射，统一为标准名称"""
-    mapping = {
-        '账号ID': ['账号ID', '广告账户', '账户ID', 'meta_id', 'account_id'],
-        '账号名称': ['账号名称', '账户名称', 'account_name'],
-        '交易号': ['交易号', '申请ID', 'transaction_id'],
-        '金额': ['金额', '充值金额', '操作金额', '操作参数', 'amount_paid', 'account_amount'],
-        '类型': ['操作', '类型', '操作类型', 'type'],
-        '申请状态': ['申请状态', '代理状态']
-    }
-    rename = {}
-    for std, candidates in mapping.items():
-        for c in candidates:
-            for col in df.columns:
-                if col.lower() == c.lower():
-                    rename[col] = std
-                    break
-    return df.rename(columns=rename)
-
-def clean_text_columns(df):
-    """清洗关键列：去除空格、.0尾巴等（用于系统和日记账）"""
-    for col in ['账号ID', '账号名称', '交易号']:
-        if col in df.columns:
-            df[col] = df[col].astype(str).str.strip()
-            df[col] = df[col].str.replace(r'\.0$', '', regex=True)
-            df[col] = df[col].replace({'nan': '', 'None': '', '<NA>': ''})
-    return df
-
 def parse_system_bill(file):
     xls = pd.ExcelFile(file)
     frames = []
@@ -190,14 +189,12 @@ def parse_system_bill(file):
             df.loc[df['类型_clean'] == 'refund from ad account', '类型'] = '清零'
             df.drop(columns=['类型_clean'], inplace=True)
 
-        # 工作表名强制类型
         sheet_low = sheet.lower()
         if any(kw in sheet_low for kw in ['充值', 'topup']):
             df['类型'] = '充值'
         elif any(kw in sheet_low for kw in ['减款', '清零', 'refund']):
             df['类型'] = '清零'
 
-        # 申请状态过滤
         if '申请状态' in df.columns:
             valid_status = df['申请状态'].str.strip().str.lower().isin(['成功', '已完成'])
             df = df[valid_status]
@@ -227,11 +224,9 @@ def load_journal(files, source):
         df = clean_text_columns(df)
         df['来源平台'] = source
 
-        # 申请状态过滤
         if '申请状态' in df.columns:
             df = df[df['申请状态'].str.strip().str.lower().isin(['成功', '已完成'])]
 
-        # 类型清洗
         if '类型' in df.columns:
             df['类型'] = df['类型'].str.strip().str.lower()
             df['类型'] = df['类型'].replace({
@@ -240,12 +235,10 @@ def load_journal(files, source):
             })
             df['类型'] = df['类型'].apply(lambda x: x if x in ['充值', '清零'] else '未知')
 
-        # 金额
         if '金额' in df.columns:
             df['金额'] = pd.to_numeric(df['金额'], errors='coerce').fillna(0)
         else:
             df['金额'] = 0
-        # 清零类取负
         df.loc[df['类型'] == '清零', '金额'] = -df.loc[df['类型'] == '清零', '金额'].abs()
         frames.append(df)
     return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
@@ -265,7 +258,6 @@ def match_platform(id_val, name_val, fb_dict, tt_dict):
     elif tt_match:
         return "TT", ""
     else:
-        # 部分匹配分析
         id_in_fb = id_str in fb_dict
         id_in_tt = id_str in tt_dict
         name_match_fb = any(v.get('name', '').lower() == name_str.lower() for v in fb_dict.values())
@@ -294,7 +286,6 @@ if st.button("🌸 开始自动对账", type="primary"):
         st.error("❌ 请至少上传一个日记账文件！")
     else:
         with st.spinner('JENNY正在高速核对，请稍候...'):
-            # 构建客户字典（已清洗过的档案）
             fb_dict = {}
             for _, row in fb_customers.iterrows():
                 cid = str(row['账号ID']).strip()
@@ -308,19 +299,16 @@ if st.button("🌸 开始自动对账", type="primary"):
                 if cid:
                     tt_dict[cid] = {'name': cname}
 
-            # 读取系统账单
             sys_df = load_system_bills(system_files)
             if sys_df.empty:
                 st.error("系统账单经处理后无有效数据")
                 st.stop()
             sys_df['来源平台'] = '系统账单'
 
-            # 读取日记账
             fb_jnl = load_journal(fb_journal_files, "FB日记账")
             tt_jnl = load_journal(tt_journal_files, "TT日记账")
             journal = pd.concat([fb_jnl, tt_jnl], ignore_index=True)
 
-            # 匹配平台
             matched_platforms = []
             errors = []
             for idx, row in sys_df.iterrows():
@@ -343,7 +331,6 @@ if st.button("🌸 开始自动对账", type="primary"):
                 st.error("匹配后无有效系统记录，对账中止")
                 st.stop()
 
-            # 对账范围过滤
             if platform_scope == "仅 Facebook":
                 sys_df = sys_df[sys_df['所属平台'] == 'FB']
                 journal = journal[journal['来源平台'] == 'FB日记账']
@@ -355,19 +342,16 @@ if st.button("🌸 开始自动对账", type="primary"):
                 st.warning("在当前平台范围内，系统账单无数据，无法对账")
                 st.stop()
 
-            # 最终清洗（时间金额）
             for df in [sys_df, journal]:
                 if not df.empty:
                     if '时间' in df.columns:
                         df['时间'] = pd.to_datetime(df['时间'], errors='coerce', format='mixed').dt.strftime("%Y-%m-%d %H:%M").fillna("")
-                    # 金额数值化
                     if '金额' in df.columns:
                         df['金额'] = pd.to_numeric(df['金额'], errors='coerce').fillna(0).round(2)
                         if '类型' in df.columns:
                             df.loc[df['类型'] == '清零', '金额'] = -df.loc[df['类型'] == '清零', '金额'].abs()
                             df.loc[df['类型'] == '充值', '金额'] = df.loc[df['类型'] == '充值', '金额'].abs()
 
-            # 主键生成
             def gen_key_sys(row):
                 plat = row['所属平台']
                 acc_id = str(row['账号ID']).strip()
@@ -408,7 +392,6 @@ if st.button("🌸 开始自动对账", type="primary"):
             if not journal.empty:
                 journal['主键'] = journal.apply(gen_key_jnl, axis=1)
 
-            # 对账计算
             if not journal.empty:
                 sys_dup = sys_df[sys_df.duplicated('主键', keep=False)]
                 jnl_dup = journal[journal.duplicated('主键', keep=False)]
@@ -425,7 +408,6 @@ if st.button("🌸 开始自动对账", type="primary"):
                 missing_in_s = journal
                 amt_diff = typ_diff = pd.DataFrame()
 
-            # 生成报告
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine='openpyxl') as writer:
                 summary = pd.DataFrame({
