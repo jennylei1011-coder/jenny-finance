@@ -6,47 +6,135 @@ import warnings
 
 warnings.filterwarnings('ignore')
 
-st.set_page_config(page_title="JENNY对账机器人", layout="wide")
+st.set_page_config(page_title="🌸 JENNY对账机器人", layout="wide")
 
-# ========== 粉色主题 ==========
+# ========== 甜美可爱主题 ==========
 st.markdown("""
 <style>
-    .main { background-color: #FFF0F5; }
-    .stApp { background-color: #FFF0F5; }
-    h1, h2, h3, h4, h5, h6, .stMarkdown, .stText { color: #C71585; }
-    .stFileUploader, .stSelectbox, .stButton>button {
-        border: 1px solid #FFB6C1 !important; border-radius: 12px !important;
+    /* 全局背景 */
+    .main, .stApp {
+        background: linear-gradient(135deg, #FFF0F5 0%, #FFE4E1 100%);
     }
+
+    /* 标题 */
+    h1 {
+        color: #FF69B4 !important;
+        font-family: 'Comic Sans MS', 'KaiTi', sans-serif;
+        text-shadow: 2px 2px 4px rgba(255,182,193,0.5);
+    }
+    h2, h3, h4 {
+        color: #DB7093 !important;
+        font-family: 'Comic Sans MS', 'KaiTi', sans-serif;
+    }
+
+    /* 容器卡片 */
+    .stFileUploader, .stSelectbox, .stMultiSelect, .stButton>button {
+        border: 2px solid #FFB6C1 !important;
+        border-radius: 20px !important;
+        background: rgba(255,255,255,0.8) !important;
+        backdrop-filter: blur(5px);
+        box-shadow: 0 4px 15px rgba(255,182,193,0.3);
+        transition: 0.3s;
+    }
+
+    .stFileUploader:hover, .stSelectbox:hover, .stMultiSelect:hover {
+        box-shadow: 0 6px 20px rgba(255,105,180,0.4);
+    }
+
+    /* 按钮 */
     .stButton>button {
-        background: linear-gradient(135deg, #FFB6C1, #FF69B4);
-        color: white; font-weight: bold; border: none; transition: 0.3s;
+        background: linear-gradient(135deg, #FFB6C1, #FF69B4) !important;
+        color: white !important;
+        font-weight: bold;
+        border: none !important;
+        border-radius: 30px !important;
+        padding: 10px 30px !important;
+        transition: 0.3s;
     }
     .stButton>button:hover {
-        background: linear-gradient(135deg, #FF69B4, #FF1493);
-        box-shadow: 0 4px 12px rgba(255,105,180,0.5);
+        background: linear-gradient(135deg, #FF69B4, #FF1493) !important;
+        box-shadow: 0 10px 25px rgba(255,105,180,0.6);
+        transform: translateY(-2px);
     }
-    .stFileUploader label { color: #DB7093 !important; font-weight: 600; }
-    .stSelectbox label, .stMultiSelect label { color: #DB7093 !important; }
-    .stAlert { background-color: #FFE4E1; border: 1px solid #FFB6C1; color: #C71585; }
-    .css-1d391kg, .css-1lcbmhc, .css-1out211 { background-color: #FFE4E1; }
-    .stDownloadButton>button { background: #FFB6C1; color: white; border: none; border-radius: 12px; }
-    p, span, div { color: #4A2545; }
+
+    /* 标签/文字 */
+    .stFileUploader label, .stSelectbox label, .stMultiSelect label {
+        color: #C71585 !important;
+        font-weight: 700;
+        font-family: 'Comic Sans MS', 'KaiTi', sans-serif;
+    }
+
+    /* 提示框 */
+    .stAlert {
+        background: #FFE4E1 !important;
+        border: 1px solid #FFB6C1 !important;
+        color: #C71585 !important;
+        border-radius: 15px !important;
+        font-family: 'Comic Sans MS', 'KaiTi', sans-serif;
+    }
+
+    /* 侧边栏 */
+    .css-1d391kg, .css-1lcbmhc, .css-1out211 {
+        background: #FFE4E1;
+        border-radius: 20px;
+    }
+
+    /* 下载按钮 */
+    .stDownloadButton>button {
+        background: #FFB6C1 !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 30px !important;
+        box-shadow: 0 4px 15px rgba(255,182,193,0.3);
+    }
+
+    /* 字色 */
+    p, span, div {
+        color: #4A2545;
+        font-family: 'Comic Sans MS', 'KaiTi', sans-serif;
+    }
+
+    /* 输入框内边距 */
+    .stTextInput>div>div>input, .stSelectbox>div>div>div {
+        border-radius: 15px !important;
+    }
+
+    /* 分隔线 */
+    hr {
+        border: 1px solid #FFB6C1;
+    }
+
+    /* 自订滚动条 */
+    ::-webkit-scrollbar {
+        width: 10px;
+    }
+    ::-webkit-scrollbar-track {
+        background: #FFF0F5;
+    }
+    ::-webkit-scrollbar-thumb {
+        background: #FFB6C1;
+        border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: #FF69B4;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🌸 JENNY对账机器人 V4")
+st.title("🍬 JENNY对账机器人 · 甜蜜版")
 st.markdown("""
-**使用流程：**
-1. 上传 FB / TT 客户档案（可多选文件，只需传一次，勿关闭页面）  
-2. 上传系统账单（可多文件）  
-3. 上传 FB / TT 日记账（可多文件）  
-4. 选择对账平台范围和渠道  
-5. 点击 **开始对账**
-""")
+<div style="background:#FFE4E1; padding:15px; border-radius:20px; margin-bottom:20px;">
+🌸 <b>使用流程：</b><br>
+1. 上传 FB / TT 客户档案（可多选，只需传一次～）<br>
+2. 上传系统账单（支持多文件）<br>
+3. 上传 FB / TT 日记账<br>
+4. 选择平台和渠道，然后点 <span style="color:#FF69B4;">✨ 开始对账 ✨</span>
+</div>
+""", unsafe_allow_html=True)
 
 # ========== 客户档案上传区 ==========
 st.subheader("📁 客户档案（带记忆，支持多文件上传）")
-st.info("⚠️ 请勿关闭浏览器标签页或手动刷新，否则需重新上传客户档案。", icon="ℹ️")
+st.info("⚠️ 请勿关闭页面或刷新，否则需重新上传客户档案哟~", icon="🧸")
 
 col_cus1, col_cus2 = st.columns(2)
 with col_cus1:
@@ -58,16 +146,15 @@ with col_cus2:
 # 通用工具函数
 # =========================
 def normalize_columns(df):
-    """智能列名映射（包含渠道字段）"""
     mapping = {
         '账号ID': ['账号ID', '广告账户', '账户ID', 'meta_id', 'account_id'],
         '账号名称': ['账号名称', '账户名称', 'account_name'],
         '交易号': ['交易号', '申请ID', 'transaction_id'],
-        '金额': ['金额', '充值金额', '操作金额', '操作参数'],          # 不含 amount_paid, account_amount
+        '金额': ['金额', '充值金额', '操作金额', '操作参数'],
         '类型': ['操作', '类型', '操作类型', 'type'],
         '申请状态': ['申请状态', '代理状态'],
         '时间': ['时间', '申请时间', '交易时间', '更新时间', 'created_at'],
-        '渠道': ['归属广告主', '广告主', '渠道']                     # 新增渠道识别
+        '渠道': ['归属广告主', '广告主', '渠道']
     }
     rename = {}
     col_strs = [str(c) for c in df.columns]
@@ -75,8 +162,7 @@ def normalize_columns(df):
         for c in candidates:
             for i, col_str in enumerate(col_strs):
                 if col_str.lower() == c.lower():
-                    original_col = df.columns[i]
-                    rename[original_col] = std
+                    rename[df.columns[i]] = std
                     break
             else:
                 continue
@@ -84,7 +170,6 @@ def normalize_columns(df):
     return df.rename(columns=rename)
 
 def clean_text_columns(df, cols=['账号ID', '账号名称', '交易号', '渠道']):
-    """强制转为文本并清洗空格、.0尾巴等（包含渠道）"""
     for col in cols:
         if col in df.columns:
             df[col] = df[col].astype(str).str.strip()
@@ -115,7 +200,6 @@ if fb_customer_files:
     if not all(col in fb_customers.columns for col in ['账号ID', '账号名称']):
         st.error("❌ FB客户档案缺少“账号ID”或“账号名称”列，请检查文件。")
         st.stop()
-    # 如果没有渠道列，补一列空值
     if '渠道' not in fb_customers.columns:
         fb_customers['渠道'] = ''
     st.session_state["fb_customers"] = fb_customers
@@ -155,24 +239,19 @@ with col_j2:
 
 platform_scope = st.selectbox("🔍 选择本次对账平台范围", ["全部平台", "仅 Facebook", "仅 TikTok"])
 
-# 渠道筛选（多选，带组合快捷选项）
-channel_options = []
+# 渠道筛选（多选，默认全部）
+channel_options = ['全部渠道']
 if fb_customers is not None or tt_customers is not None:
-    # 收集所有渠道并去重
     all_channels = set()
     if fb_customers is not None and '渠道' in fb_customers.columns:
         all_channels.update(fb_customers['渠道'].dropna().unique())
     if tt_customers is not None and '渠道' in tt_customers.columns:
         all_channels.update(tt_customers['渠道'].dropna().unique())
-    all_channels.discard('')  # 移除空字符串
-    # 钛动组合
+    all_channels.discard('')
     taidong_set = {'北京齐风', '中顺建业', '希瑞福', '北京和海坤鑫'}
-    taidong_in_data = taidong_set & all_channels
-    special_options = ['全部渠道']
-    if taidong_in_data:
-        special_options.append('钛动')
-    # 构建选项列表：特殊选项 + 具体渠道
-    channel_options = special_options + sorted(all_channels)
+    if taidong_set & all_channels:
+        channel_options.append('钛动')
+    channel_options += sorted(all_channels)
 
 selected_channels = st.multiselect(
     "📌 选择渠道（可多选，默认全部）",
@@ -193,7 +272,6 @@ def parse_system_bill(file):
         df = normalize_columns(df)
         df = clean_text_columns(df)
 
-        # 判断是否为 type 系统
         is_type_system = False
         if '类型' in df.columns:
             type_vals = df['类型'].str.lower().str.strip()
@@ -201,12 +279,10 @@ def parse_system_bill(file):
                 is_type_system = True
 
         if is_type_system:
-            # ----- type 系统特殊处理 -----
             df['类型_clean'] = df['类型'].str.lower().str.strip()
             allowed = ['account_topup', 'refund from ad account']
             df = df[df['类型_clean'].isin(allowed)]
 
-            # pending 过滤
             pending_cols = [c for c in df.columns if 'pending' in str(c).lower()]
             if pending_cols:
                 for c in pending_cols:
@@ -214,12 +290,10 @@ def parse_system_bill(file):
                 mask = (df[pending_cols] != 0).any(axis=1)
                 df = df[~mask]
 
-            # 特殊处理 created_at 时间字段：只取 '.' 之前的部分
             if '时间' in df.columns:
                 df['时间'] = df['时间'].astype(str).str.strip()
                 df['时间'] = df['时间'].str.split('.').str[0]
 
-            # 金额提取
             def pick_amount(row):
                 t = row['类型_clean']
                 if t == 'account_topup':
@@ -242,7 +316,6 @@ def parse_system_bill(file):
             df.drop(columns=['类型_clean'], inplace=True)
 
         else:
-            # ----- 普通系统账单处理 -----
             pending_cols = [c for c in df.columns if 'pending' in str(c).lower()]
             if pending_cols:
                 for c in pending_cols:
@@ -261,7 +334,6 @@ def parse_system_bill(file):
             else:
                 df['金额'] = pd.Series(0.0, index=df.index)
 
-        # 通用：申请状态过滤
         if '申请状态' in df.columns:
             valid_status = df['申请状态'].str.strip().str.lower().isin(['成功', '已完成'])
             df = df[valid_status]
@@ -272,10 +344,7 @@ def parse_system_bill(file):
 
         frames.append(df)
 
-    if not frames:
-        return pd.DataFrame()
-    result = pd.concat(frames, ignore_index=True)
-    return result
+    return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
 
 def load_system_bills(files):
     if not files:
@@ -320,13 +389,9 @@ def load_journal(files, source):
     return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
 
 def match_platform_and_channel(id_val, name_val, fb_dict, tt_dict):
-    """
-    返回 (平台, 渠道, 异常信息)
-    """
     id_str = str(id_val).strip()
     name_str = str(name_val).strip()
 
-    # 先在FB字典里查完全匹配
     fb_info = fb_dict.get(id_str) if id_str in fb_dict else None
     tt_info = tt_dict.get(id_str) if id_str in tt_dict else None
 
@@ -340,7 +405,6 @@ def match_platform_and_channel(id_val, name_val, fb_dict, tt_dict):
     elif tt_match:
         return "TT", tt_info.get('channel', ''), ""
     else:
-        # 部分匹配分析
         id_in_fb = id_str in fb_dict
         id_in_tt = id_str in tt_dict
         name_match_fb = any(v.get('name', '').lower() == name_str.lower() for v in fb_dict.values())
@@ -360,7 +424,7 @@ def match_platform_and_channel(id_val, name_val, fb_dict, tt_dict):
 # =========================
 # 开始对账
 # =========================
-if st.button("🌸 开始自动对账", type="primary"):
+if st.button("✨ 开始自动对账", type="primary"):
     if not system_files:
         st.error("❌ 请上传系统账单！")
     elif fb_customers is None or tt_customers is None:
@@ -368,8 +432,7 @@ if st.button("🌸 开始自动对账", type="primary"):
     elif not fb_journal_files and not tt_journal_files:
         st.error("❌ 请至少上传一个日记账文件！")
     else:
-        with st.spinner('JENNY正在高速核对，请稍候...'):
-            # 1. 构建客户字典（ID -> {name, channel, platform}）
+        with st.spinner('🍬 JENNY正在甜蜜核对，请稍候...'):
             fb_dict = {}
             for _, row in fb_customers.iterrows():
                 cid = str(row['账号ID']).strip()
@@ -385,19 +448,16 @@ if st.button("🌸 开始自动对账", type="primary"):
                 if cid:
                     tt_dict[cid] = {'name': cname, 'channel': channel, 'plat': 'TT'}
 
-            # 2. 读取系统账单
             sys_df = load_system_bills(system_files)
             if sys_df.empty:
                 st.error("系统账单经处理后无有效数据")
                 st.stop()
             sys_df['来源平台'] = '系统账单'
 
-            # 3. 读取日记账
             fb_jnl = load_journal(fb_journal_files, "FB日记账")
             tt_jnl = load_journal(tt_journal_files, "TT日记账")
             journal = pd.concat([fb_jnl, tt_jnl], ignore_index=True)
 
-            # 4. 匹配平台和渠道
             matched_platforms = []
             match_channels = []
             errors = []
@@ -423,7 +483,6 @@ if st.button("🌸 开始自动对账", type="primary"):
                 st.error("匹配后无有效系统记录，对账中止")
                 st.stop()
 
-            # 5. 日记账也匹配渠道（通过相同的客户字典）
             def get_journal_channel(row):
                 acc_id = str(row.get('账号ID', '')).strip()
                 if acc_id in fb_dict:
@@ -434,9 +493,7 @@ if st.button("🌸 开始自动对账", type="primary"):
             if not journal.empty:
                 journal['渠道'] = journal.apply(get_journal_channel, axis=1)
 
-            # 6. 渠道筛选
             if '全部渠道' not in selected_channels:
-                # 解析组合选项“钛动”
                 filter_channels = set()
                 taidong_set = {'北京齐风', '中顺建业', '希瑞福', '北京和海坤鑫'}
                 for ch in selected_channels:
@@ -444,10 +501,7 @@ if st.button("🌸 开始自动对账", type="primary"):
                         filter_channels.update(taidong_set)
                     else:
                         filter_channels.add(ch)
-
-                # 过滤系统账单
                 sys_df = sys_df[sys_df['渠道'].isin(filter_channels)]
-                # 过滤日记账
                 if not journal.empty:
                     journal = journal[journal['渠道'].isin(filter_channels)]
 
@@ -455,7 +509,6 @@ if st.button("🌸 开始自动对账", type="primary"):
                 st.warning("筛选渠道后，系统账单无数据，无法对账")
                 st.stop()
 
-            # 7. 平台范围过滤
             if platform_scope == "仅 Facebook":
                 sys_df = sys_df[sys_df['所属平台'] == 'FB']
                 journal = journal[journal['来源平台'] == 'FB日记账'] if not journal.empty else journal
@@ -467,7 +520,6 @@ if st.button("🌸 开始自动对账", type="primary"):
                 st.warning("在当前平台范围内，系统账单无数据，无法对账")
                 st.stop()
 
-            # 8. 统一时间清洗
             for df in [sys_df, journal]:
                 if not df.empty:
                     if '时间' in df.columns:
@@ -480,7 +532,6 @@ if st.button("🌸 开始自动对账", type="primary"):
                     else:
                         df['金额'] = 0.0
 
-            # 9. 主键生成（略，同前）
             def gen_key_sys(row):
                 plat = row['所属平台']
                 acc_id = str(row['账号ID']).strip()
@@ -521,7 +572,6 @@ if st.button("🌸 开始自动对账", type="primary"):
             if not journal.empty:
                 journal['主键'] = journal.apply(gen_key_jnl, axis=1)
 
-            # 10. 对账计算
             if not journal.empty:
                 sys_dup = sys_df[sys_df.duplicated('主键', keep=False)]
                 jnl_dup = journal[journal.duplicated('主键', keep=False)]
@@ -538,7 +588,6 @@ if st.button("🌸 开始自动对账", type="primary"):
                 missing_in_s = journal
                 amt_diff = typ_diff = pd.DataFrame()
 
-            # 11. 生成报告
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine='openpyxl') as writer:
                 summary = pd.DataFrame({
@@ -555,7 +604,7 @@ if st.button("🌸 开始自动对账", type="primary"):
                 sys_dup.to_excel(writer, sheet_name="5.系统重复", index=False)
                 jnl_dup.to_excel(writer, sheet_name="6.日记账重复", index=False)
 
-            st.success("✅ JENNY对账完成！请下载报告。")
+            st.success("🎉 对账完成！请下载甜蜜报告～")
             st.download_button(
                 label="📥 下载对账报告",
                 data=output.getvalue(),
