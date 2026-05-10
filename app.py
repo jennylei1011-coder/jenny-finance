@@ -9,12 +9,10 @@ warnings.filterwarnings('ignore')
 
 st.set_page_config(page_title="🌸 JENNY对账机器人", layout="wide")
 
-# ========== 甜美可爱主题（简洁字体） ==========
+# ========== 甜美可爱主题 ==========
 st.markdown("""
 <style>
-    .main, .stApp {
-        background: linear-gradient(135deg, #FFF0F5 0%, #FFE4E1 100%);
-    }
+    .main, .stApp { background: linear-gradient(135deg, #FFF0F5 0%, #FFE4E1 100%); }
     h1 { color: #FF69B4 !important; text-shadow: 2px 2px 4px rgba(255,182,193,0.5); }
     h2, h3, h4 { color: #DB7093 !important; }
     .stFileUploader, .stSelectbox, .stMultiSelect, .stButton>button, .stDateInput {
@@ -32,9 +30,7 @@ st.markdown("""
         background: linear-gradient(135deg, #FF69B4, #FF1493) !important;
         box-shadow: 0 10px 25px rgba(255,105,180,0.6); transform: translateY(-2px);
     }
-    .stFileUploader label, .stSelectbox label, .stMultiSelect label, .stDateInput label {
-        color: #C71585 !important; font-weight: 700;
-    }
+    .stFileUploader label, .stSelectbox label, .stMultiSelect label, .stDateInput label { color: #C71585 !important; font-weight: 700; }
     .stAlert { background: #FFE4E1 !important; border: 1px solid #FFB6C1 !important; color: #C71585 !important; border-radius: 15px !important; }
     .css-1d391kg, .css-1lcbmhc, .css-1out211 { background: #FFE4E1; border-radius: 20px; }
     .stDownloadButton>button { background: #FFB6C1 !important; color: white !important; border: none !important; border-radius: 30px !important; box-shadow: 0 4px 15px rgba(255,182,193,0.3); }
@@ -46,7 +42,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🍬 JENNY对账机器人")
+st.title("🍬 JENNY对账机器人 · 甜蜜版")
 st.markdown("""
 <div style="background:#FFE4E1; padding:15px; border-radius:20px; margin-bottom:20px;">
 🌸 <b>使用流程：</b><br>
@@ -96,23 +92,16 @@ def normalize_columns(df):
 def clean_text_columns(df, cols=['账号ID', '账号名称', '交易号', '渠道', '客户']):
     for col in cols:
         if col in df.columns:
-            # 转为字符串并去除空白
             df[col] = df[col].astype(str).str.strip()
-            # 去除末尾 .0
             df[col] = df[col].str.replace(r'\.0$', '', regex=True)
-            # 替换常见空值
             df[col] = df[col].replace({'nan': '', 'None': '', '<NA>': ''})
     return df
 
 def robust_clean_time(df):
-    """强力清洗时间列，确保可解析"""
     if '时间' in df.columns:
-        # 移除不可见字符
         df['时间'] = df['时间'].astype(str).str.strip()
-        # 移除可能的制表符、换行等
         df['时间'] = df['时间'].str.replace(r'\s+', ' ', regex=True)
-        # 如果是 type 系统已经截断过，此处也兼容
-        df['时间'] = df['时间'].str.split('.').str[0]  # 去掉毫秒
+        df['时间'] = df['时间'].str.split('.').str[0]
     return df
 
 def load_multiple_excel(files, platform_label):
@@ -257,7 +246,6 @@ def parse_system_bill(file):
                 mask = (df[pending_cols] != 0).any(axis=1)
                 df = df[~mask]
 
-            # 时间预处理（截断毫秒）
             df = robust_clean_time(df)
 
             def pick_amount(row):
@@ -282,8 +270,7 @@ def parse_system_bill(file):
             df.drop(columns=['类型_clean'], inplace=True)
 
         else:
-            df = robust_clean_time(df)  # 普通账单也清洗
-
+            df = robust_clean_time(df)
             pending_cols = [c for c in df.columns if 'pending' in str(c).lower()]
             if pending_cols:
                 for c in pending_cols:
@@ -336,11 +323,9 @@ def load_journal(files, source):
         df = clean_text_columns(df)
         df['来源平台'] = source
 
-        # 客户列不存在则置空
         if '客户' not in df.columns:
             df['客户'] = ''
 
-        # 时间强力清洗
         df = robust_clean_time(df)
 
         if '申请状态' in df.columns:
@@ -420,7 +405,6 @@ if st.button("✨ 开始自动对账", type="primary"):
             tt_jnl = load_journal(tt_journal_files, "TT日记账")
             journal = pd.concat([fb_jnl, tt_jnl], ignore_index=True)
 
-            # --- 调试：日记账列名及前2行 ---
             st.write("📋 日记账列名:", list(journal.columns))
             st.write("📋 日记账前2行:", journal.head(2))
 
@@ -453,7 +437,7 @@ if st.button("✨ 开始自动对账", type="primary"):
                 st.error("匹配后无有效系统记录，对账中止")
                 st.stop()
 
-            # 日记账的渠道 = 客户
+            # 日记账渠道 = 客户 (保持不变)
             if not journal.empty:
                 journal['渠道'] = journal['客户'] if '客户' in journal.columns else ''
             else:
@@ -479,20 +463,10 @@ if st.button("✨ 开始自动对账", type="primary"):
 
             st.write(f"📅 使用时间范围: {start_date} 至 {end_date}")
 
-            # 时间过滤前，先确保时间可解析
-            for df in [sys_df, journal]:
-                if not df.empty and '时间' in df.columns:
-                    # 打印解析前后的时间样本
-                    if df is sys_df:
-                        st.write("⏱️ 系统账时间样本（前3个）:", df['时间'].head(3).tolist())
-                    else:
-                        st.write("⏱️ 日记账时间样本（前3个）:", df['时间'].head(3).tolist())
-
             # 时间过滤
             for idx, df in enumerate([sys_df, journal]):
                 if not df.empty and '时间' in df.columns:
                     df['时间_dt'] = pd.to_datetime(df['时间'], errors='coerce')
-                    st.write(f"时间解析后 NaT 数量 (df{idx}):", df['时间_dt'].isna().sum())
                     mask = (df['时间_dt'].notna()) & (df['时间_dt'].dt.date >= start_date) & (df['时间_dt'].dt.date <= end_date)
                     df = df[mask].copy()
                     df.drop(columns=['时间_dt'], inplace=True)
@@ -503,7 +477,7 @@ if st.button("✨ 开始自动对账", type="primary"):
 
             st.write(f"⏳ 时间过滤后：系统账单 {len(sys_df)} 条，日记账 {len(journal)} 条")
 
-            # 渠道筛选
+            # 渠道筛选（确保“全部渠道”时不执行）
             if '全部渠道' not in selected_channels:
                 filter_channels = set()
                 taidong_set = {'北京齐风', '中顺建业', '希瑞福', '北京和海坤鑫'}
@@ -516,14 +490,21 @@ if st.button("✨ 开始自动对账", type="primary"):
                     sys_df = sys_df[sys_df['渠道'].isin(filter_channels)]
                 if not journal.empty and '渠道' in journal.columns:
                     journal = journal[journal['渠道'].isin(filter_channels)]
+                st.write(f"🔗 渠道筛选后：系统账单 {len(sys_df)} 条，日记账 {len(journal)} 条")
+            else:
+                st.write("🔗 渠道筛选：未启用（全部渠道）")
 
+            # 客户筛选（仅当明确选择了客户时才执行）
             if selected_clients:
                 if '客户' in sys_df.columns:
                     sys_df = sys_df[sys_df['客户'].isin(selected_clients)]
                 if not journal.empty and '客户' in journal.columns:
                     journal = journal[journal['客户'].isin(selected_clients)]
-
-            st.write(f"🎯 渠道/客户筛选后：系统账单 {len(sys_df)} 条，日记账 {len(journal)} 条")
+                st.write(f"🧑 客户筛选后：系统账单 {len(sys_df)} 条，日记账 {len(journal)} 条")
+                if not journal.empty and len(journal) == 0:
+                    st.warning("客户筛选后日记账为0条，请检查所选客户是否正确。")
+            else:
+                st.write("🧑 客户筛选：未启用（全部客户）")
 
             # 平台范围过滤
             if platform_scope == "仅 Facebook":
@@ -543,7 +524,6 @@ if st.button("✨ 开始自动对账", type="primary"):
             for df in [sys_df, journal]:
                 if not df.empty:
                     if '时间' in df.columns:
-                        # 再次强力解析
                         df['时间'] = pd.to_datetime(df['时间'], errors='coerce', format='mixed').dt.strftime("%Y-%m-%d %H:%M").fillna("")
                     if '金额' in df.columns:
                         df['金额'] = pd.to_numeric(df['金额'], errors='coerce').fillna(0).round(2)
@@ -597,9 +577,6 @@ if st.button("✨ 开始自动对账", type="primary"):
             st.write("🔑 系统账单前5个主键:", list(sys_df['主键'].head(5)))
             if not journal.empty:
                 st.write("🔑 日记账前5个主键:", list(journal['主键'].head(5)))
-                # 额外显示日记账的账号ID和时间样本
-                st.write("🔍 日记账账号ID样本:", list(journal['账号ID'].head(5)))
-                st.write("🔍 日记账时间样本:", list(journal['时间'].head(5)))
 
             # 对账计算
             if not journal.empty:
@@ -618,7 +595,6 @@ if st.button("✨ 开始自动对账", type="primary"):
                 missing_in_s = journal
                 amt_diff = typ_diff = pd.DataFrame()
 
-            # 生成报告
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine='openpyxl') as writer:
                 summary = pd.DataFrame({
@@ -635,7 +611,7 @@ if st.button("✨ 开始自动对账", type="primary"):
                 sys_dup.to_excel(writer, sheet_name="5.系统重复", index=False)
                 jnl_dup.to_excel(writer, sheet_name="6.日记账重复", index=False)
 
-            st.success("🎉 对账完成！请下载报告～")
+            st.success("🎉 对账完成！请下载甜蜜报告～")
             st.download_button(
                 label="📥 下载对账报告",
                 data=output.getvalue(),
