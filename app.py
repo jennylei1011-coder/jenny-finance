@@ -219,7 +219,7 @@ else:
     end_date = None
     st.info("将自动使用系统账和日记账中最早的日期作为开始，最晚的日期作为结束。")
 
-# ========== 系统账单处理函数 ==========
+# ========== 系统账单处理函数（已修复） ==========
 def parse_system_bill(file):
     xls = pd.ExcelFile(file)
     frames = []
@@ -272,6 +272,7 @@ def parse_system_bill(file):
             df.drop(columns=['类型_clean'], inplace=True)
 
         else:
+            # ===== 修复开始：非type系统账单处理 =====
             df = robust_clean_time(df)
             pending_cols = [c for c in df.columns if 'pending' in str(c).lower()]
             if pending_cols:
@@ -280,16 +281,32 @@ def parse_system_bill(file):
                 mask = (df[pending_cols] != 0).any(axis=1)
                 df = df[~mask]
 
+            # 根据工作表名强制类型
             sheet_low = sheet.lower()
             if any(kw in sheet_low for kw in ['充值', 'topup']):
                 df['类型'] = '充值'
             elif any(kw in sheet_low for kw in ['减款', '清零', 'refund']):
                 df['类型'] = '清零'
 
+            # 统一类型名称：将“减款”也转换为“清零”
+            if '类型' in df.columns:
+                df['类型'] = df['类型'].str.strip().str.lower()
+                df['类型'] = df['类型'].replace({
+                    '减款': '清零',
+                    'refund': '清零',
+                    'topup': '充值'
+                })
+                df['类型'] = df['类型'].apply(lambda x: x if x in ['充值', '清零'] else '未知')
+
+            # 金额处理：将数值转为正数，后续根据类型赋予符号
             if '金额' in df.columns:
-                df['金额'] = pd.to_numeric(df['金额'], errors='coerce').fillna(0)
+                df['金额'] = pd.to_numeric(df['金额'], errors='coerce').fillna(0).abs()
             else:
-                df['金额'] = pd.Series(0.0, index=df.index)
+                df['金额'] = 0.0
+
+            # 清零类型金额取负
+            df.loc[df['类型'] == '清零', '金额'] = -df.loc[df['类型'] == '清零', '金额']
+
 
         if '申请状态' in df.columns:
             valid_status = df['申请状态'].str.strip().str.lower().isin(['成功', '已完成'])
@@ -378,7 +395,7 @@ if st.button("✨ 开始自动对账", type="primary"):
     elif not fb_journal_files and not tt_journal_files:
         st.error("❌ 请至少上传一个日记账文件！")
     else:
-        with st.spinner('🍬 JENNY正在甜蜜核对，请稍候...'):
+        with st.spinner('🍬 JENNY正在核对，请稍候...'):
             fb_dict = {}
             for _, row in fb_customers.iterrows():
                 cid = str(row['账号ID']).strip()
@@ -528,18 +545,17 @@ if st.button("✨ 开始自动对账", type="primary"):
                 st.warning("在当前平台范围内，系统账单无数据，无法对账")
                 st.stop()
 
+            # 最终清洗：格式化时间，金额保留两位小数（符号已经统一处理）
             for df in [sys_df, journal]:
                 if not df.empty:
                     if '时间' in df.columns:
                         df['时间'] = pd.to_datetime(df['时间'], errors='coerce', format='mixed').dt.strftime("%Y-%m-%d %H:%M").fillna("")
                     if '金额' in df.columns:
                         df['金额'] = pd.to_numeric(df['金额'], errors='coerce').fillna(0).round(2)
-                        if '类型' in df.columns:
-                            df.loc[df['类型'] == '清零', '金额'] = -df.loc[df['类型'] == '清零', '金额'].abs()
-                            df.loc[df['类型'] == '充值', '金额'] = df.loc[df['类型'] == '充值', '金额'].abs()
                     else:
                         df['金额'] = 0.0
 
+            # 主键生成（不变）
             def gen_key_sys(row):
                 plat = row['所属平台']
                 acc_id = str(row['账号ID']).strip()
@@ -588,7 +604,8 @@ if st.button("✨ 开始自动对账", type="primary"):
                 sys_u = sys_df.drop_duplicates('主键')
                 jnl_u = journal.drop_duplicates('主键')
                 merged = pd.merge(sys_u, jnl_u, on='主键', suffixes=('_系统', '_日记账'), how='inner')
-                amt_diff = merged[merged['金额_系统'] != merged['金额_日记账']]
+                # 金额比对：使用绝对值，忽略正负号
+                amt_diff = merged[abs(merged['金额_系统'] - merged['金额_日记账']) > 0.001]
                 typ_diff = merged[merged['类型_系统'] != merged['类型_日记账']]
             else:
                 sys_dup = jnl_dup = pd.DataFrame()
