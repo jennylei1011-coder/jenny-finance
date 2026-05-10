@@ -589,7 +589,7 @@ if st.button("✨ 开始自动对账", type="primary"):
                 sys_dup.to_excel(writer, sheet_name="5.系统重复", index=False)
                 jnl_dup.to_excel(writer, sheet_name="6.日记账重复", index=False)
 
-            st.success("🎉 对账完成！请下载甜蜜报告～")
+            st.success("🎉 对账完成！请下载报告～")
             st.download_button(
                 label="📥 下载对账报告",
                 data=output.getvalue(),
