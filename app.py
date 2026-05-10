@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import io
 import warnings
+from datetime import datetime
 
 warnings.filterwarnings('ignore')
 
@@ -11,12 +12,9 @@ st.set_page_config(page_title="🌸 JENNY对账机器人", layout="wide")
 # ========== 甜美可爱主题（简洁字体） ==========
 st.markdown("""
 <style>
-    /* 全局背景 */
     .main, .stApp {
         background: linear-gradient(135deg, #FFF0F5 0%, #FFE4E1 100%);
     }
-
-    /* 标题 */
     h1 {
         color: #FF69B4 !important;
         text-shadow: 2px 2px 4px rgba(255,182,193,0.5);
@@ -24,9 +22,7 @@ st.markdown("""
     h2, h3, h4 {
         color: #DB7093 !important;
     }
-
-    /* 容器卡片 */
-    .stFileUploader, .stSelectbox, .stMultiSelect, .stButton>button {
+    .stFileUploader, .stSelectbox, .stMultiSelect, .stButton>button, .stDateInput {
         border: 2px solid #FFB6C1 !important;
         border-radius: 20px !important;
         background: rgba(255,255,255,0.8) !important;
@@ -34,12 +30,9 @@ st.markdown("""
         box-shadow: 0 4px 15px rgba(255,182,193,0.3);
         transition: 0.3s;
     }
-
     .stFileUploader:hover, .stSelectbox:hover, .stMultiSelect:hover {
         box-shadow: 0 6px 20px rgba(255,105,180,0.4);
     }
-
-    /* 按钮 */
     .stButton>button {
         background: linear-gradient(135deg, #FFB6C1, #FF69B4) !important;
         color: white !important;
@@ -54,28 +47,20 @@ st.markdown("""
         box-shadow: 0 10px 25px rgba(255,105,180,0.6);
         transform: translateY(-2px);
     }
-
-    /* 标签/文字 */
-    .stFileUploader label, .stSelectbox label, .stMultiSelect label {
+    .stFileUploader label, .stSelectbox label, .stMultiSelect label, .stDateInput label {
         color: #C71585 !important;
         font-weight: 700;
     }
-
-    /* 提示框 */
     .stAlert {
         background: #FFE4E1 !important;
         border: 1px solid #FFB6C1 !important;
         color: #C71585 !important;
         border-radius: 15px !important;
     }
-
-    /* 侧边栏 */
     .css-1d391kg, .css-1lcbmhc, .css-1out211 {
         background: #FFE4E1;
         border-radius: 20px;
     }
-
-    /* 下载按钮 */
     .stDownloadButton>button {
         background: #FFB6C1 !important;
         color: white !important;
@@ -83,37 +68,24 @@ st.markdown("""
         border-radius: 30px !important;
         box-shadow: 0 4px 15px rgba(255,182,193,0.3);
     }
-
-    /* 普通文字颜色保持不变 */
     p, span, div {
         color: #4A2545;
     }
-
-    /* 自定义滚动条 */
-    ::-webkit-scrollbar {
-        width: 10px;
-    }
-    ::-webkit-scrollbar-track {
-        background: #FFF0F5;
-    }
-    ::-webkit-scrollbar-thumb {
-        background: #FFB6C1;
-        border-radius: 10px;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-        background: #FF69B4;
-    }
+    ::-webkit-scrollbar { width: 10px; }
+    ::-webkit-scrollbar-track { background: #FFF0F5; }
+    ::-webkit-scrollbar-thumb { background: #FFB6C1; border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: #FF69B4; }
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🍬 JENNY对账机器人")
+st.title("🍬 JENNY对账机器人 · 甜蜜版")
 st.markdown("""
 <div style="background:#FFE4E1; padding:15px; border-radius:20px; margin-bottom:20px;">
 🌸 <b>使用流程：</b><br>
 1. 上传 FB / TT 客户档案（可多选，只需传一次～）<br>
 2. 上传系统账单（支持多文件）<br>
 3. 上传 FB / TT 日记账<br>
-4. 选择平台和渠道，然后点 <span style="color:#FF69B4;">✨ 开始对账 ✨</span>
+4. 选择时间范围、平台和渠道，然后点 <span style="color:#FF69B4;">✨ 开始对账 ✨</span>
 </div>
 """, unsafe_allow_html=True)
 
@@ -131,6 +103,7 @@ with col_cus2:
 # 通用工具函数
 # =========================
 def normalize_columns(df):
+    """智能列名映射（新增客户字段）"""
     mapping = {
         '账号ID': ['账号ID', '广告账户', '账户ID', 'meta_id', 'account_id'],
         '账号名称': ['账号名称', '账户名称', 'account_name'],
@@ -139,7 +112,8 @@ def normalize_columns(df):
         '类型': ['操作', '类型', '操作类型', 'type'],
         '申请状态': ['申请状态', '代理状态'],
         '时间': ['时间', '申请时间', '交易时间', '更新时间', 'created_at'],
-        '渠道': ['归属广告主', '广告主', '渠道']
+        '渠道': ['归属广告主', '广告主', '渠道'],
+        '客户': ['客户', '匹配客户', '分配客户', '客户标签']      # 新增客户映射
     }
     rename = {}
     col_strs = [str(c) for c in df.columns]
@@ -154,7 +128,8 @@ def normalize_columns(df):
             break
     return df.rename(columns=rename)
 
-def clean_text_columns(df, cols=['账号ID', '账号名称', '交易号', '渠道']):
+def clean_text_columns(df, cols=['账号ID', '账号名称', '交易号', '渠道', '客户']):
+    """强制转为文本并清洗空格、.0尾巴等"""
     for col in cols:
         if col in df.columns:
             df[col] = df[col].astype(str).str.strip()
@@ -176,7 +151,7 @@ def load_multiple_excel(files, platform_label):
     if not frames:
         return pd.DataFrame()
     df_all = pd.concat(frames, ignore_index=True)
-    df_all = clean_text_columns(df_all, ['账号ID', '账号名称', '渠道'])
+    df_all = clean_text_columns(df_all, ['账号ID', '账号名称', '渠道', '客户'])
     return df_all
 
 # FB客户档案记忆
@@ -187,6 +162,8 @@ if fb_customer_files:
         st.stop()
     if '渠道' not in fb_customers.columns:
         fb_customers['渠道'] = ''
+    if '客户' not in fb_customers.columns:
+        fb_customers['客户'] = ''
     st.session_state["fb_customers"] = fb_customers
     st.success(f"🌸 FB客户档案已更新（共 {len(fb_customers)} 条）")
 elif "fb_customers" in st.session_state:
@@ -202,6 +179,8 @@ if tt_customer_files:
         st.stop()
     if '渠道' not in tt_customers.columns:
         tt_customers['渠道'] = ''
+    if '客户' not in tt_customers.columns:
+        tt_customers['客户'] = ''
     st.session_state["tt_customers"] = tt_customers
     st.success(f"🌸 TT客户档案已更新（共 {len(tt_customers)} 条）")
 elif "tt_customers" in st.session_state:
@@ -222,9 +201,16 @@ with col_j1:
 with col_j2:
     tt_journal_files = st.file_uploader("🟠 上传 TT 日记账（可多选）", type=["xlsx", "xls"], accept_multiple_files=True)
 
+# 时间范围选择
+st.subheader("📅 选择核对时间范围")
+col_t1, col_t2 = st.columns(2)
+with col_t1:
+    start_date = st.date_input("开始日期", value=datetime(2026, 1, 1))
+with col_t2:
+    end_date = st.date_input("结束日期", value=datetime.today())
+
 platform_scope = st.selectbox("🔍 选择本次对账平台范围", ["全部平台", "仅 Facebook", "仅 TikTok"])
 
-# 渠道筛选（多选，默认全部）
 channel_options = ['全部渠道']
 if fb_customers is not None or tt_customers is not None:
     all_channels = set()
@@ -353,6 +339,10 @@ def load_journal(files, source):
         df = clean_text_columns(df)
         df['来源平台'] = source
 
+        # 如果有客户列，保留，该列将成为日记账的渠道（归属）
+        if '客户' not in df.columns:
+            df['客户'] = ''   # 若原表无客户字段，则留空
+
         if '申请状态' in df.columns:
             df = df[df['申请状态'].str.strip().str.lower().isin(['成功', '已完成'])]
 
@@ -377,8 +367,8 @@ def match_platform_and_channel(id_val, name_val, fb_dict, tt_dict):
     id_str = str(id_val).strip()
     name_str = str(name_val).strip()
 
-    fb_info = fb_dict.get(id_str) if id_str in fb_dict else None
-    tt_info = tt_dict.get(id_str) if id_str in tt_dict else None
+    fb_info = fb_dict.get(id_str)
+    tt_info = tt_dict.get(id_str)
 
     fb_match = fb_info is not None and fb_info.get('name', '').lower() == name_str.lower()
     tt_match = tt_info is not None and tt_info.get('name', '').lower() == name_str.lower()
@@ -390,21 +380,7 @@ def match_platform_and_channel(id_val, name_val, fb_dict, tt_dict):
     elif tt_match:
         return "TT", tt_info.get('channel', ''), ""
     else:
-        id_in_fb = id_str in fb_dict
-        id_in_tt = id_str in tt_dict
-        name_match_fb = any(v.get('name', '').lower() == name_str.lower() for v in fb_dict.values())
-        name_match_tt = any(v.get('name', '').lower() == name_str.lower() for v in tt_dict.values())
-
-        if id_in_fb and not name_match_fb:
-            return None, '', "账号ID在FB档案中存在，但名称不匹配"
-        elif id_in_tt and not name_match_tt:
-            return None, '', "账号ID在TT档案中存在，但名称不匹配"
-        elif name_match_fb and not id_in_fb:
-            return None, '', "账号名称在FB档案中存在，但ID不匹配"
-        elif name_match_tt and not id_in_tt:
-            return None, '', "账号名称在TT档案中存在，但ID不匹配"
-        else:
-            return None, '', "账号ID和名称均未在客户档案中找到"
+        return None, '', "账号ID或名称与客户档案不匹配，请核实信息"
 
 # =========================
 # 开始对账
@@ -418,6 +394,7 @@ if st.button("✨ 开始自动对账", type="primary"):
         st.error("❌ 请至少上传一个日记账文件！")
     else:
         with st.spinner('🍬 JENNY正在甜蜜核对，请稍候...'):
+            # 构建客户字典
             fb_dict = {}
             for _, row in fb_customers.iterrows():
                 cid = str(row['账号ID']).strip()
@@ -433,16 +410,19 @@ if st.button("✨ 开始自动对账", type="primary"):
                 if cid:
                     tt_dict[cid] = {'name': cname, 'channel': channel, 'plat': 'TT'}
 
+            # 读取系统账单
             sys_df = load_system_bills(system_files)
             if sys_df.empty:
                 st.error("系统账单经处理后无有效数据")
                 st.stop()
             sys_df['来源平台'] = '系统账单'
 
+            # 读取日记账
             fb_jnl = load_journal(fb_journal_files, "FB日记账")
             tt_jnl = load_journal(tt_journal_files, "TT日记账")
             journal = pd.concat([fb_jnl, tt_jnl], ignore_index=True)
 
+            # 匹配平台和渠道（仅系统账单）
             matched_platforms = []
             match_channels = []
             errors = []
@@ -468,16 +448,26 @@ if st.button("✨ 开始自动对账", type="primary"):
                 st.error("匹配后无有效系统记录，对账中止")
                 st.stop()
 
-            def get_journal_channel(row):
-                acc_id = str(row.get('账号ID', '')).strip()
-                if acc_id in fb_dict:
-                    return fb_dict[acc_id].get('channel', '')
-                elif acc_id in tt_dict:
-                    return tt_dict[acc_id].get('channel', '')
-                return ''
+            # 日记账渠道使用自身的“客户”字段
             if not journal.empty:
-                journal['渠道'] = journal.apply(get_journal_channel, axis=1)
+                journal['渠道'] = journal['客户']
 
+            # 时间范围过滤
+            for df in [sys_df, journal]:
+                if not df.empty and '时间' in df.columns:
+                    # 先将时间列转为可比较的日期
+                    df['时间_dt'] = pd.to_datetime(df['时间'], errors='coerce')
+                    # 过滤
+                    mask = (df['时间_dt'].notna()) & (df['时间_dt'].dt.date >= start_date) & (df['时间_dt'].dt.date <= end_date)
+                    df = df[mask].copy()
+                    # 删除辅助列，保留时间字符串
+                    df.drop(columns=['时间_dt'], inplace=True)
+
+            if sys_df.empty:
+                st.warning("筛选时间范围后，系统账单无数据，无法对账")
+                st.stop()
+
+            # 渠道筛选
             if '全部渠道' not in selected_channels:
                 filter_channels = set()
                 taidong_set = {'北京齐风', '中顺建业', '希瑞福', '北京和海坤鑫'}
@@ -494,6 +484,7 @@ if st.button("✨ 开始自动对账", type="primary"):
                 st.warning("筛选渠道后，系统账单无数据，无法对账")
                 st.stop()
 
+            # 平台范围过滤
             if platform_scope == "仅 Facebook":
                 sys_df = sys_df[sys_df['所属平台'] == 'FB']
                 journal = journal[journal['来源平台'] == 'FB日记账'] if not journal.empty else journal
@@ -505,6 +496,7 @@ if st.button("✨ 开始自动对账", type="primary"):
                 st.warning("在当前平台范围内，系统账单无数据，无法对账")
                 st.stop()
 
+            # 最终清洗：时间格式化、金额处理
             for df in [sys_df, journal]:
                 if not df.empty:
                     if '时间' in df.columns:
@@ -517,6 +509,7 @@ if st.button("✨ 开始自动对账", type="primary"):
                     else:
                         df['金额'] = 0.0
 
+            # 主键生成
             def gen_key_sys(row):
                 plat = row['所属平台']
                 acc_id = str(row['账号ID']).strip()
@@ -557,6 +550,7 @@ if st.button("✨ 开始自动对账", type="primary"):
             if not journal.empty:
                 journal['主键'] = journal.apply(gen_key_jnl, axis=1)
 
+            # 对账计算
             if not journal.empty:
                 sys_dup = sys_df[sys_df.duplicated('主键', keep=False)]
                 jnl_dup = journal[journal.duplicated('主键', keep=False)]
@@ -573,6 +567,7 @@ if st.button("✨ 开始自动对账", type="primary"):
                 missing_in_s = journal
                 amt_diff = typ_diff = pd.DataFrame()
 
+            # 生成报告
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine='openpyxl') as writer:
                 summary = pd.DataFrame({
