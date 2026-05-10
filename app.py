@@ -15,62 +15,30 @@ st.markdown("""
     .main, .stApp {
         background: linear-gradient(135deg, #FFF0F5 0%, #FFE4E1 100%);
     }
-    h1 {
-        color: #FF69B4 !important;
-        text-shadow: 2px 2px 4px rgba(255,182,193,0.5);
-    }
-    h2, h3, h4 {
-        color: #DB7093 !important;
-    }
+    h1 { color: #FF69B4 !important; text-shadow: 2px 2px 4px rgba(255,182,193,0.5); }
+    h2, h3, h4 { color: #DB7093 !important; }
     .stFileUploader, .stSelectbox, .stMultiSelect, .stButton>button, .stDateInput {
-        border: 2px solid #FFB6C1 !important;
-        border-radius: 20px !important;
-        background: rgba(255,255,255,0.8) !important;
-        backdrop-filter: blur(5px);
-        box-shadow: 0 4px 15px rgba(255,182,193,0.3);
-        transition: 0.3s;
+        border: 2px solid #FFB6C1 !important; border-radius: 20px !important;
+        background: rgba(255,255,255,0.8) !important; backdrop-filter: blur(5px);
+        box-shadow: 0 4px 15px rgba(255,182,193,0.3); transition: 0.3s;
     }
-    .stFileUploader:hover, .stSelectbox:hover, .stMultiSelect:hover {
-        box-shadow: 0 6px 20px rgba(255,105,180,0.4);
-    }
+    .stFileUploader:hover, .stSelectbox:hover, .stMultiSelect:hover { box-shadow: 0 6px 20px rgba(255,105,180,0.4); }
     .stButton>button {
         background: linear-gradient(135deg, #FFB6C1, #FF69B4) !important;
-        color: white !important;
-        font-weight: bold;
-        border: none !important;
-        border-radius: 30px !important;
-        padding: 10px 30px !important;
-        transition: 0.3s;
+        color: white !important; font-weight: bold; border: none !important;
+        border-radius: 30px !important; padding: 10px 30px !important; transition: 0.3s;
     }
     .stButton>button:hover {
         background: linear-gradient(135deg, #FF69B4, #FF1493) !important;
-        box-shadow: 0 10px 25px rgba(255,105,180,0.6);
-        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(255,105,180,0.6); transform: translateY(-2px);
     }
     .stFileUploader label, .stSelectbox label, .stMultiSelect label, .stDateInput label {
-        color: #C71585 !important;
-        font-weight: 700;
+        color: #C71585 !important; font-weight: 700;
     }
-    .stAlert {
-        background: #FFE4E1 !important;
-        border: 1px solid #FFB6C1 !important;
-        color: #C71585 !important;
-        border-radius: 15px !important;
-    }
-    .css-1d391kg, .css-1lcbmhc, .css-1out211 {
-        background: #FFE4E1;
-        border-radius: 20px;
-    }
-    .stDownloadButton>button {
-        background: #FFB6C1 !important;
-        color: white !important;
-        border: none !important;
-        border-radius: 30px !important;
-        box-shadow: 0 4px 15px rgba(255,182,193,0.3);
-    }
-    p, span, div {
-        color: #4A2545;
-    }
+    .stAlert { background: #FFE4E1 !important; border: 1px solid #FFB6C1 !important; color: #C71585 !important; border-radius: 15px !important; }
+    .css-1d391kg, .css-1lcbmhc, .css-1out211 { background: #FFE4E1; border-radius: 20px; }
+    .stDownloadButton>button { background: #FFB6C1 !important; color: white !important; border: none !important; border-radius: 30px !important; box-shadow: 0 4px 15px rgba(255,182,193,0.3); }
+    p, span, div { color: #4A2545; }
     ::-webkit-scrollbar { width: 10px; }
     ::-webkit-scrollbar-track { background: #FFF0F5; }
     ::-webkit-scrollbar-thumb { background: #FFB6C1; border-radius: 10px; }
@@ -78,7 +46,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🍬 JENNY对账机器人")
+st.title("🍬 JENNY对账机器人 · 甜蜜版")
 st.markdown("""
 <div style="background:#FFE4E1; padding:15px; border-radius:20px; margin-bottom:20px;">
 🌸 <b>使用流程：</b><br>
@@ -99,9 +67,7 @@ with col_cus1:
 with col_cus2:
     tt_customer_files = st.file_uploader("🟠 上传 TT 客户档案（可多选）", type=["xlsx", "xls"], accept_multiple_files=True, key="tt_customer")
 
-# =========================
-# 通用工具函数
-# =========================
+# ========== 通用工具函数 ==========
 def normalize_columns(df):
     mapping = {
         '账号ID': ['账号ID', '广告账户', '账户ID', 'meta_id', 'account_id'],
@@ -130,9 +96,23 @@ def normalize_columns(df):
 def clean_text_columns(df, cols=['账号ID', '账号名称', '交易号', '渠道', '客户']):
     for col in cols:
         if col in df.columns:
+            # 转为字符串并去除空白
             df[col] = df[col].astype(str).str.strip()
+            # 去除末尾 .0
             df[col] = df[col].str.replace(r'\.0$', '', regex=True)
+            # 替换常见空值
             df[col] = df[col].replace({'nan': '', 'None': '', '<NA>': ''})
+    return df
+
+def robust_clean_time(df):
+    """强力清洗时间列，确保可解析"""
+    if '时间' in df.columns:
+        # 移除不可见字符
+        df['时间'] = df['时间'].astype(str).str.strip()
+        # 移除可能的制表符、换行等
+        df['时间'] = df['时间'].str.replace(r'\s+', ' ', regex=True)
+        # 如果是 type 系统已经截断过，此处也兼容
+        df['时间'] = df['时间'].str.split('.').str[0]  # 去掉毫秒
     return df
 
 def load_multiple_excel(files, platform_label):
@@ -248,9 +228,7 @@ else:
     end_date = None
     st.info("将自动使用系统账和日记账中最早的日期作为开始，最晚的日期作为结束。")
 
-# =========================
-# 系统账单处理函数
-# =========================
+# ========== 系统账单处理函数 ==========
 def parse_system_bill(file):
     xls = pd.ExcelFile(file)
     frames = []
@@ -279,9 +257,8 @@ def parse_system_bill(file):
                 mask = (df[pending_cols] != 0).any(axis=1)
                 df = df[~mask]
 
-            if '时间' in df.columns:
-                df['时间'] = df['时间'].astype(str).str.strip()
-                df['时间'] = df['时间'].str.split('.').str[0]
+            # 时间预处理（截断毫秒）
+            df = robust_clean_time(df)
 
             def pick_amount(row):
                 t = row['类型_clean']
@@ -305,6 +282,8 @@ def parse_system_bill(file):
             df.drop(columns=['类型_clean'], inplace=True)
 
         else:
+            df = robust_clean_time(df)  # 普通账单也清洗
+
             pending_cols = [c for c in df.columns if 'pending' in str(c).lower()]
             if pending_cols:
                 for c in pending_cols:
@@ -357,8 +336,12 @@ def load_journal(files, source):
         df = clean_text_columns(df)
         df['来源平台'] = source
 
+        # 客户列不存在则置空
         if '客户' not in df.columns:
             df['客户'] = ''
+
+        # 时间强力清洗
+        df = robust_clean_time(df)
 
         if '申请状态' in df.columns:
             df = df[df['申请状态'].str.strip().str.lower().isin(['成功', '已完成'])]
@@ -399,9 +382,7 @@ def match_platform_and_channel_and_client(id_val, name_val, fb_dict, tt_dict):
     else:
         return None, '', '', "账号ID或名称与客户档案不匹配，请核实信息"
 
-# =========================
-# 开始对账
-# =========================
+# ========== 开始对账 ==========
 if st.button("✨ 开始自动对账", type="primary"):
     if not system_files:
         st.error("❌ 请上传系统账单！")
@@ -439,6 +420,10 @@ if st.button("✨ 开始自动对账", type="primary"):
             tt_jnl = load_journal(tt_journal_files, "TT日记账")
             journal = pd.concat([fb_jnl, tt_jnl], ignore_index=True)
 
+            # --- 调试：日记账列名及前2行 ---
+            st.write("📋 日记账列名:", list(journal.columns))
+            st.write("📋 日记账前2行:", journal.head(2))
+
             # 匹配系统账
             matched_platforms = []
             match_channels = []
@@ -468,13 +453,12 @@ if st.button("✨ 开始自动对账", type="primary"):
                 st.error("匹配后无有效系统记录，对账中止")
                 st.stop()
 
-            # 日记账渠道 = 客户
+            # 日记账的渠道 = 客户
             if not journal.empty:
                 journal['渠道'] = journal['客户'] if '客户' in journal.columns else ''
             else:
                 journal = pd.DataFrame(columns=['账号ID', '账号名称', '时间', '交易号', '金额', '类型', '来源平台', '渠道', '客户'])
 
-            # --- 调试信息：初始记录数 ---
             st.write(f"🔍 初始系统账单记录数: {len(sys_df)}，初始日记账记录数: {len(journal)}")
 
             # 时间范围自动计算
@@ -495,10 +479,20 @@ if st.button("✨ 开始自动对账", type="primary"):
 
             st.write(f"📅 使用时间范围: {start_date} 至 {end_date}")
 
+            # 时间过滤前，先确保时间可解析
+            for df in [sys_df, journal]:
+                if not df.empty and '时间' in df.columns:
+                    # 打印解析前后的时间样本
+                    if df is sys_df:
+                        st.write("⏱️ 系统账时间样本（前3个）:", df['时间'].head(3).tolist())
+                    else:
+                        st.write("⏱️ 日记账时间样本（前3个）:", df['时间'].head(3).tolist())
+
             # 时间过滤
             for idx, df in enumerate([sys_df, journal]):
                 if not df.empty and '时间' in df.columns:
                     df['时间_dt'] = pd.to_datetime(df['时间'], errors='coerce')
+                    st.write(f"时间解析后 NaT 数量 (df{idx}):", df['时间_dt'].isna().sum())
                     mask = (df['时间_dt'].notna()) & (df['时间_dt'].dt.date >= start_date) & (df['时间_dt'].dt.date <= end_date)
                     df = df[mask].copy()
                     df.drop(columns=['时间_dt'], inplace=True)
@@ -523,7 +517,6 @@ if st.button("✨ 开始自动对账", type="primary"):
                 if not journal.empty and '渠道' in journal.columns:
                     journal = journal[journal['渠道'].isin(filter_channels)]
 
-            # 客户筛选
             if selected_clients:
                 if '客户' in sys_df.columns:
                     sys_df = sys_df[sys_df['客户'].isin(selected_clients)]
@@ -550,6 +543,7 @@ if st.button("✨ 开始自动对账", type="primary"):
             for df in [sys_df, journal]:
                 if not df.empty:
                     if '时间' in df.columns:
+                        # 再次强力解析
                         df['时间'] = pd.to_datetime(df['时间'], errors='coerce', format='mixed').dt.strftime("%Y-%m-%d %H:%M").fillna("")
                     if '金额' in df.columns:
                         df['金额'] = pd.to_numeric(df['金额'], errors='coerce').fillna(0).round(2)
@@ -600,10 +594,12 @@ if st.button("✨ 开始自动对账", type="primary"):
             if not journal.empty:
                 journal['主键'] = journal.apply(gen_key_jnl, axis=1)
 
-            # 显示前几条主键示例，方便对比
             st.write("🔑 系统账单前5个主键:", list(sys_df['主键'].head(5)))
             if not journal.empty:
                 st.write("🔑 日记账前5个主键:", list(journal['主键'].head(5)))
+                # 额外显示日记账的账号ID和时间样本
+                st.write("🔍 日记账账号ID样本:", list(journal['账号ID'].head(5)))
+                st.write("🔍 日记账时间样本:", list(journal['时间'].head(5)))
 
             # 对账计算
             if not journal.empty:
@@ -639,7 +635,7 @@ if st.button("✨ 开始自动对账", type="primary"):
                 sys_dup.to_excel(writer, sheet_name="5.系统重复", index=False)
                 jnl_dup.to_excel(writer, sheet_name="6.日记账重复", index=False)
 
-            st.success("🎉 对账完成！请下载报告～")
+            st.success("🎉 对账完成！请下载甜蜜报告～")
             st.download_button(
                 label="📥 下载对账报告",
                 data=output.getvalue(),
@@ -647,7 +643,6 @@ if st.button("✨ 开始自动对账", type="primary"):
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
 
-            # 最终统计
             if not journal.empty:
                 matched_count = merged.shape[0]
                 st.write(f"✅ 匹配成功 {matched_count} 条，金额不符 {len(amt_diff)} 条，类型不符 {len(typ_diff)} 条")
