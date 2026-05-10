@@ -297,7 +297,7 @@ def parse_system_bill(file):
 
         if '金额' not in df.columns:
             df['金额'] = pd.Series(0.0, index=df.index)
-        df['金额'] = pd.to_numeric(df['金額'], errors='coerce').fillna(0)
+        df['金额'] = pd.to_numeric(df['金额'], errors='coerce').fillna(0)
 
         frames.append(df)
 
