@@ -8,7 +8,7 @@ warnings.filterwarnings('ignore')
 
 st.set_page_config(page_title="🌸 JENNY对账机器人", layout="wide")
 
-# ========== 甜美可爱主题 ==========
+# ========== 甜美可爱主题（简洁字体） ==========
 st.markdown("""
 <style>
     /* 全局背景 */
@@ -19,12 +19,10 @@ st.markdown("""
     /* 标题 */
     h1 {
         color: #FF69B4 !important;
-        font-family: 'Comic Sans MS', 'KaiTi', sans-serif;
         text-shadow: 2px 2px 4px rgba(255,182,193,0.5);
     }
     h2, h3, h4 {
         color: #DB7093 !important;
-        font-family: 'Comic Sans MS', 'KaiTi', sans-serif;
     }
 
     /* 容器卡片 */
@@ -61,7 +59,6 @@ st.markdown("""
     .stFileUploader label, .stSelectbox label, .stMultiSelect label {
         color: #C71585 !important;
         font-weight: 700;
-        font-family: 'Comic Sans MS', 'KaiTi', sans-serif;
     }
 
     /* 提示框 */
@@ -70,7 +67,6 @@ st.markdown("""
         border: 1px solid #FFB6C1 !important;
         color: #C71585 !important;
         border-radius: 15px !important;
-        font-family: 'Comic Sans MS', 'KaiTi', sans-serif;
     }
 
     /* 侧边栏 */
@@ -88,23 +84,12 @@ st.markdown("""
         box-shadow: 0 4px 15px rgba(255,182,193,0.3);
     }
 
-    /* 字色 */
+    /* 普通文字颜色保持不变 */
     p, span, div {
         color: #4A2545;
-        font-family: 'Comic Sans MS', 'KaiTi', sans-serif;
     }
 
-    /* 输入框内边距 */
-    .stTextInput>div>div>input, .stSelectbox>div>div>div {
-        border-radius: 15px !important;
-    }
-
-    /* 分隔线 */
-    hr {
-        border: 1px solid #FFB6C1;
-    }
-
-    /* 自订滚动条 */
+    /* 自定义滚动条 */
     ::-webkit-scrollbar {
         width: 10px;
     }
@@ -121,7 +106,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🍬 JENNY对账机器人 · 甜蜜版")
+st.title("🍬 JENNY对账机器人")
 st.markdown("""
 <div style="background:#FFE4E1; padding:15px; border-radius:20px; margin-bottom:20px;">
 🌸 <b>使用流程：</b><br>
