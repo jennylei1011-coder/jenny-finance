@@ -297,10 +297,9 @@ def parse_system_bill(file):
                 })
                 df['类型'] = df['类型'].apply(lambda x: x if x in ['充值', '清零'] else '未知')
 
-            # 金额取绝对值，清零再转负（确保清零为负，充值为正）
+            # 金额：保留原始数值，不强制取正或取负
             if '金额' in df.columns:
-                df['金额'] = pd.to_numeric(df['金额'], errors='coerce').fillna(0).abs()
-                df.loc[df['类型'] == '清零', '金额'] = -df.loc[df['类型'] == '清零', '金额']
+                df['金额'] = pd.to_numeric(df['金额'], errors='coerce').fillna(0)
             else:
                 df['金额'] = 0.0
 
@@ -356,8 +355,7 @@ def load_journal(files, source):
             df['类型'] = df['类型'].apply(lambda x: x if x in ['充值', '清零'] else '未知')
 
         if '金额' in df.columns:
-            df['金额'] = pd.to_numeric(df['金额'], errors='coerce').fillna(0).abs()
-            df.loc[df['类型'] == '清零', '金额'] = -df.loc[df['类型'] == '清零', '金额']
+            df['金额'] = pd.to_numeric(df['金额'], errors='coerce').fillna(0)
         else:
             df['金额'] = pd.Series(0.0, index=df.index)
 
@@ -420,7 +418,6 @@ if st.button("✨ 开始自动对账", type="primary"):
             tt_jnl = load_journal(tt_journal_files, "TT日记账")
             journal = pd.concat([fb_jnl, tt_jnl], ignore_index=True)
 
-            # 匹配系统账
             matched_platforms = []
             match_channels = []
             match_clients = []
@@ -449,7 +446,6 @@ if st.button("✨ 开始自动对账", type="primary"):
                 st.error("匹配后无有效系统记录，对账中止")
                 st.stop()
 
-            # 日记账的渠道和客户从档案字典获取
             def get_channel_from_dict(acc_id):
                 acc_str = str(acc_id).strip()
                 if acc_str in fb_dict:
@@ -476,7 +472,6 @@ if st.button("✨ 开始自动对账", type="primary"):
             else:
                 journal = pd.DataFrame(columns=['账号ID', '账号名称', '时间', '交易号', '金额', '类型', '来源平台', '渠道', '客户'])
 
-            # 时间范围
             if not use_custom_date:
                 time_series = []
                 for df in [sys_df, journal]:
@@ -507,7 +502,6 @@ if st.button("✨ 开始自动对账", type="primary"):
                 st.warning("筛选时间范围后，系统账单无数据，无法对账")
                 st.stop()
 
-            # 渠道筛选
             if '全部渠道' not in selected_channels and len(selected_channels) > 0:
                 filter_channels = set()
                 taidong_set = {'北京齐风', '中顺建业', '希瑞福', '北京和海坤鑫'}
@@ -525,7 +519,6 @@ if st.button("✨ 开始自动对账", type="primary"):
                 st.warning("筛选渠道后，系统账单无数据，无法对账")
                 st.stop()
 
-            # 客户筛选
             if selected_clients:
                 if '客户' in sys_df.columns:
                     sys_df = sys_df[sys_df['客户'].isin(selected_clients)]
@@ -536,7 +529,6 @@ if st.button("✨ 开始自动对账", type="primary"):
                 st.warning("筛选客户后，系统账单无数据，无法对账")
                 st.stop()
 
-            # 平台筛选
             if platform_scope == "仅 Facebook":
                 sys_df = sys_df[sys_df['所属平台'] == 'FB']
                 journal = journal[journal['来源平台'] == 'FB日记账'] if not journal.empty else journal
@@ -548,12 +540,11 @@ if st.button("✨ 开始自动对账", type="primary"):
                 st.warning("在当前平台范围内，系统账单无数据，无法对账")
                 st.stop()
 
-            # 最终清洗：格式化时间
+            # 最终清洗：只格式化时间，保留金额原始数值
             for df in [sys_df, journal]:
                 if not df.empty:
                     if '时间' in df.columns:
                         df['时间'] = pd.to_datetime(df['时间'], errors='coerce', format='mixed').dt.strftime("%Y-%m-%d %H:%M").fillna("")
-                    # 金额已经处理完毕，只保留两位小数
                     if '金额' in df.columns:
                         df['金额'] = pd.to_numeric(df['金额'], errors='coerce').fillna(0).round(2)
                     else:
@@ -600,7 +591,6 @@ if st.button("✨ 开始自动对账", type="primary"):
             if not journal.empty:
                 journal['主键'] = journal.apply(gen_key_jnl, axis=1)
 
-            # 对账计算（关键修复：金额比较按类型区分）
             if not journal.empty:
                 sys_dup = sys_df[sys_df.duplicated('主键', keep=False)]
                 jnl_dup = journal[journal.duplicated('主键', keep=False)]
@@ -610,20 +600,19 @@ if st.button("✨ 开始自动对账", type="primary"):
                 jnl_u = journal.drop_duplicates('主键')
                 merged = pd.merge(sys_u, jnl_u, on='主键', suffixes=('_系统', '_日记账'), how='inner')
 
-                # ---- 金额比对 ----
+                # ---- 金额比对：清零类型仅看绝对值，充值类型直接比较 ----
                 def is_amount_match(row):
                     a_sys = row['金额_系统']
                     a_jnl = row['金额_日记账']
                     t_sys = row['类型_系统']
                     t_jnl = row['类型_日记账']
                     if t_sys != t_jnl:
-                        # 类型不同，直接交由类型不符去检查，金额不算差异
                         return True
                     if t_sys == '清零':
-                        # 清零类型只比较绝对值
+                        # 清零：比较绝对值
                         return abs(a_sys - a_jnl) < 0.001
                     else:
-                        # 充值类型直接比较
+                        # 充值：直接比较（如果需要亦可改为 abs）
                         return abs(a_sys - a_jnl) < 0.001
 
                 merged['_amt_match'] = merged.apply(is_amount_match, axis=1)
@@ -637,7 +626,6 @@ if st.button("✨ 开始自动对账", type="primary"):
                 missing_in_s = journal
                 amt_diff = typ_diff = pd.DataFrame()
 
-            # 生成报告
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine='openpyxl') as writer:
                 summary = pd.DataFrame({
@@ -654,7 +642,6 @@ if st.button("✨ 开始自动对账", type="primary"):
                 sys_dup.to_excel(writer, sheet_name="5.系统重复", index=False)
                 jnl_dup.to_excel(writer, sheet_name="6.日记账重复", index=False)
 
-            # 动态报告文件名
             today_str = datetime.today().strftime("%Y%m%d")
             client_str = "_".join(selected_clients) if selected_clients else "全部客户"
             if '全部渠道' in selected_channels or not selected_channels:
