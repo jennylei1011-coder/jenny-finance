@@ -78,14 +78,14 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🍬 JENNY对账机器人 · 甜蜜版")
+st.title("🍬 JENNY对账机器人 ")
 st.markdown("""
 <div style="background:#FFE4E1; padding:15px; border-radius:20px; margin-bottom:20px;">
 🌸 <b>使用流程：</b><br>
 1. 上传 FB / TT 客户档案（可多选，只需传一次～）<br>
 2. 上传系统账单（支持多文件）<br>
 3. 上传 FB / TT 日记账<br>
-4. 选择时间范围、平台和渠道，然后点 <span style="color:#FF69B4;">✨ 开始对账 ✨</span>
+4. 选择时间、平台、渠道、客户（可选），然后点 <span style="color:#FF69B4;">✨ 开始对账 ✨</span>
 </div>
 """, unsafe_allow_html=True)
 
@@ -103,7 +103,6 @@ with col_cus2:
 # 通用工具函数
 # =========================
 def normalize_columns(df):
-    """智能列名映射（新增客户字段）"""
     mapping = {
         '账号ID': ['账号ID', '广告账户', '账户ID', 'meta_id', 'account_id'],
         '账号名称': ['账号名称', '账户名称', 'account_name'],
@@ -113,7 +112,7 @@ def normalize_columns(df):
         '申请状态': ['申请状态', '代理状态'],
         '时间': ['时间', '申请时间', '交易时间', '更新时间', 'created_at'],
         '渠道': ['归属广告主', '广告主', '渠道'],
-        '客户': ['客户', '匹配客户', '分配客户', '客户标签']      # 新增客户映射
+        '客户': ['客户', '匹配客户', '分配客户', '客户标签']
     }
     rename = {}
     col_strs = [str(c) for c in df.columns]
@@ -129,7 +128,6 @@ def normalize_columns(df):
     return df.rename(columns=rename)
 
 def clean_text_columns(df, cols=['账号ID', '账号名称', '交易号', '渠道', '客户']):
-    """强制转为文本并清洗空格、.0尾巴等"""
     for col in cols:
         if col in df.columns:
             df[col] = df[col].astype(str).str.strip()
@@ -201,16 +199,9 @@ with col_j1:
 with col_j2:
     tt_journal_files = st.file_uploader("🟠 上传 TT 日记账（可多选）", type=["xlsx", "xls"], accept_multiple_files=True)
 
-# 时间范围选择
-st.subheader("📅 选择核对时间范围")
-col_t1, col_t2 = st.columns(2)
-with col_t1:
-    start_date = st.date_input("开始日期", value=datetime(2026, 1, 1))
-with col_t2:
-    end_date = st.date_input("结束日期", value=datetime.today())
-
 platform_scope = st.selectbox("🔍 选择本次对账平台范围", ["全部平台", "仅 Facebook", "仅 TikTok"])
 
+# 渠道筛选
 channel_options = ['全部渠道']
 if fb_customers is not None or tt_customers is not None:
     all_channels = set()
@@ -229,6 +220,36 @@ selected_channels = st.multiselect(
     options=channel_options,
     default=['全部渠道']
 )
+
+# 独立客户筛选
+client_options = []
+if fb_customers is not None or tt_customers is not None:
+    all_clients = set()
+    if fb_customers is not None and '客户' in fb_customers.columns:
+        all_clients.update(fb_customers['客户'].dropna().astype(str).str.strip().unique())
+    if tt_customers is not None and '客户' in tt_customers.columns:
+        all_clients.update(tt_customers['客户'].dropna().astype(str).str.strip().unique())
+    all_clients.discard('')
+    client_options = sorted(all_clients)
+
+selected_clients = st.multiselect(
+    "🧑 选择客户（可多选，默认全部）",
+    options=client_options,
+    default=[]
+)
+
+# 时间范围选择
+use_custom_date = st.checkbox("📅 启用自定义日期范围", value=False)
+if use_custom_date:
+    col_t1, col_t2 = st.columns(2)
+    with col_t1:
+        start_date = st.date_input("开始日期")
+    with col_t2:
+        end_date = st.date_input("结束日期")
+else:
+    start_date = None
+    end_date = None
+    st.info("将自动使用系统账和日记账中最早的日期作为开始，最晚的日期作为结束。")
 
 # =========================
 # 系统账单处理函数
@@ -339,9 +360,8 @@ def load_journal(files, source):
         df = clean_text_columns(df)
         df['来源平台'] = source
 
-        # 如果有客户列，保留，该列将成为日记账的渠道（归属）
         if '客户' not in df.columns:
-            df['客户'] = ''   # 若原表无客户字段，则留空
+            df['客户'] = ''
 
         if '申请状态' in df.columns:
             df = df[df['申请状态'].str.strip().str.lower().isin(['成功', '已完成'])]
@@ -363,7 +383,7 @@ def load_journal(files, source):
         frames.append(df)
     return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
 
-def match_platform_and_channel(id_val, name_val, fb_dict, tt_dict):
+def match_platform_and_channel_and_client(id_val, name_val, fb_dict, tt_dict):
     id_str = str(id_val).strip()
     name_str = str(name_val).strip()
 
@@ -374,13 +394,13 @@ def match_platform_and_channel(id_val, name_val, fb_dict, tt_dict):
     tt_match = tt_info is not None and tt_info.get('name', '').lower() == name_str.lower()
 
     if fb_match and tt_match:
-        return "FB", fb_info.get('channel', ''), f"⚠️ 账号ID {id_str} 在FB和TT档案中都完全匹配，暂归为FB"
+        return "FB", fb_info.get('channel', ''), fb_info.get('client', ''), f"⚠️ 账号ID {id_str} 在FB和TT档案中都完全匹配，暂归为FB"
     elif fb_match:
-        return "FB", fb_info.get('channel', ''), ""
+        return "FB", fb_info.get('channel', ''), fb_info.get('client', ''), ""
     elif tt_match:
-        return "TT", tt_info.get('channel', ''), ""
+        return "TT", tt_info.get('channel', ''), tt_info.get('client', ''), ""
     else:
-        return None, '', "账号ID或名称与客户档案不匹配，请核实信息"
+        return None, '', '', "账号ID或名称与客户档案不匹配，请核实信息"
 
 # =========================
 # 开始对账
@@ -394,21 +414,23 @@ if st.button("✨ 开始自动对账", type="primary"):
         st.error("❌ 请至少上传一个日记账文件！")
     else:
         with st.spinner('🍬 JENNY正在甜蜜核对，请稍候...'):
-            # 构建客户字典
+            # 构建客户字典（含渠道和客户）
             fb_dict = {}
             for _, row in fb_customers.iterrows():
                 cid = str(row['账号ID']).strip()
                 cname = str(row['账号名称']).strip()
                 channel = str(row.get('渠道', '')).strip()
+                client = str(row.get('客户', '')).strip()
                 if cid:
-                    fb_dict[cid] = {'name': cname, 'channel': channel, 'plat': 'FB'}
+                    fb_dict[cid] = {'name': cname, 'channel': channel, 'client': client, 'plat': 'FB'}
             tt_dict = {}
             for _, row in tt_customers.iterrows():
                 cid = str(row['账号ID']).strip()
                 cname = str(row['账号名称']).strip()
                 channel = str(row.get('渠道', '')).strip()
+                client = str(row.get('客户', '')).strip()
                 if cid:
-                    tt_dict[cid] = {'name': cname, 'channel': channel, 'plat': 'TT'}
+                    tt_dict[cid] = {'name': cname, 'channel': channel, 'client': client, 'plat': 'TT'}
 
             # 读取系统账单
             sys_df = load_system_bills(system_files)
@@ -422,19 +444,24 @@ if st.button("✨ 开始自动对账", type="primary"):
             tt_jnl = load_journal(tt_journal_files, "TT日记账")
             journal = pd.concat([fb_jnl, tt_jnl], ignore_index=True)
 
-            # 匹配平台和渠道（仅系统账单）
+            # 匹配系统账（平台、渠道、客户）
             matched_platforms = []
             match_channels = []
+            match_clients = []
             errors = []
             for idx, row in sys_df.iterrows():
-                plat, ch, err = match_platform_and_channel(row.get('账号ID', ''), row.get('账号名称', ''), fb_dict, tt_dict)
+                plat, ch, cl, err = match_platform_and_channel_and_client(
+                    row.get('账号ID', ''), row.get('账号名称', ''), fb_dict, tt_dict
+                )
                 matched_platforms.append(plat)
                 match_channels.append(ch)
+                match_clients.append(cl)
                 if plat is None:
                     errors.append((row.get('账号ID', ''), row.get('账号名称', ''), err))
 
             sys_df['所属平台'] = matched_platforms
             sys_df['渠道'] = match_channels
+            sys_df['客户'] = match_clients
 
             if errors:
                 st.error(f"🚨 系统账单中发现 {len(errors)} 条记录与客户档案不匹配，已剔除：")
@@ -448,19 +475,30 @@ if st.button("✨ 开始自动对账", type="primary"):
                 st.error("匹配后无有效系统记录，对账中止")
                 st.stop()
 
-            # 日记账渠道使用自身的“客户”字段
-            if not journal.empty:
-                journal['渠道'] = journal['客户']
+            # 日记账客户列已在 load_journal 中保留
+            # 计算时间范围（自动）
+            if not use_custom_date:
+                # 提取系统账和日记账的有效时间
+                time_series = []
+                for df in [sys_df, journal]:
+                    if not df.empty and '时间' in df.columns:
+                        ser = pd.to_datetime(df['时间'], errors='coerce').dropna()
+                        if not ser.empty:
+                            time_series.append(ser)
+                if time_series:
+                    all_times = pd.concat(time_series)
+                    start_date = all_times.min().date()
+                    end_date = all_times.max().date()
+                else:
+                    start_date = datetime(2026, 1, 1).date()
+                    end_date = datetime.today().date()
 
             # 时间范围过滤
             for df in [sys_df, journal]:
                 if not df.empty and '时间' in df.columns:
-                    # 先将时间列转为可比较的日期
                     df['时间_dt'] = pd.to_datetime(df['时间'], errors='coerce')
-                    # 过滤
                     mask = (df['时间_dt'].notna()) & (df['时间_dt'].dt.date >= start_date) & (df['时间_dt'].dt.date <= end_date)
                     df = df[mask].copy()
-                    # 删除辅助列，保留时间字符串
                     df.drop(columns=['时间_dt'], inplace=True)
 
             if sys_df.empty:
@@ -484,6 +522,16 @@ if st.button("✨ 开始自动对账", type="primary"):
                 st.warning("筛选渠道后，系统账单无数据，无法对账")
                 st.stop()
 
+            # 独立客户筛选
+            if selected_clients:
+                sys_df = sys_df[sys_df['客户'].isin(selected_clients)]
+                if not journal.empty:
+                    journal = journal[journal['客户'].isin(selected_clients)]
+
+            if sys_df.empty:
+                st.warning("筛选客户后，系统账单无数据，无法对账")
+                st.stop()
+
             # 平台范围过滤
             if platform_scope == "仅 Facebook":
                 sys_df = sys_df[sys_df['所属平台'] == 'FB']
@@ -496,7 +544,7 @@ if st.button("✨ 开始自动对账", type="primary"):
                 st.warning("在当前平台范围内，系统账单无数据，无法对账")
                 st.stop()
 
-            # 最终清洗：时间格式化、金额处理
+            # 最终清洗与格式化
             for df in [sys_df, journal]:
                 if not df.empty:
                     if '时间' in df.columns:
