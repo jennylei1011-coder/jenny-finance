@@ -12,9 +12,22 @@ st.set_page_config(page_title="🌸 JENNY对账机器人", layout="wide")
 # ========== 甜美可爱主题（全局） ==========
 st.markdown("""
 <style>
+    /* 全局背景 */
     .main, .stApp { background: linear-gradient(135deg, #FFF0F5 0%, #FFE4E1 100%); }
-    h1 { color: #FF69B4 !important; text-shadow: 2px 2px 4px rgba(255,182,193,0.5); }
-    h2, h3, h4 { color: #DB7093 !important; }
+    /* 卡片容器 */
+    .card {
+        background: rgba(255,255,255,0.75);
+        backdrop-filter: blur(10px);
+        border-radius: 24px;
+        padding: 20px 25px;
+        margin: 15px 0;
+        box-shadow: 0 8px 32px rgba(255,182,193,0.2);
+        border: 1px solid rgba(255,182,193,0.4);
+    }
+    h1 { color: #FF69B4 !important; text-shadow: 2px 2px 4px rgba(255,182,193,0.5); font-size: 2.8rem !important; }
+    h2 { color: #DB7093 !important; border-bottom: 2px dashed #FFB6C1; padding-bottom: 0.3rem; }
+    h3 { color: #C71585 !important; }
+    h4 { color: #DB7093 !important; }
     .stFileUploader, .stSelectbox, .stMultiSelect, .stButton>button, .stDateInput {
         border: 2px solid #FFB6C1 !important; border-radius: 20px !important;
         background: rgba(255,255,255,0.8) !important; backdrop-filter: blur(5px);
@@ -25,6 +38,7 @@ st.markdown("""
         background: linear-gradient(135deg, #FFB6C1, #FF69B4) !important;
         color: white !important; font-weight: bold; border: none !important;
         border-radius: 30px !important; padding: 10px 30px !important; transition: 0.3s;
+        font-size: 1.1rem;
     }
     .stButton>button:hover {
         background: linear-gradient(135deg, #FF69B4, #FF1493) !important;
@@ -32,13 +46,22 @@ st.markdown("""
     }
     .stFileUploader label, .stSelectbox label, .stMultiSelect label, .stDateInput label { color: #C71585 !important; font-weight: 700; }
     .stAlert { background: #FFE4E1 !important; border: 1px solid #FFB6C1 !important; color: #C71585 !important; border-radius: 15px !important; }
-    .css-1d391kg, .css-1lcbmhc, .css-1out211 { background: #FFE4E1; border-radius: 20px; }
     .stDownloadButton>button { background: #FFB6C1 !important; color: white !important; border: none !important; border-radius: 30px !important; box-shadow: 0 4px 15px rgba(255,182,193,0.3); }
+    .stDownloadButton>button:hover { background: #FF69B4 !important; }
     p, span, div { color: #4A2545; }
     ::-webkit-scrollbar { width: 10px; }
     ::-webkit-scrollbar-track { background: #FFF0F5; }
     ::-webkit-scrollbar-thumb { background: #FFB6C1; border-radius: 10px; }
     ::-webkit-scrollbar-thumb:hover { background: #FF69B4; }
+    /* 结果卡片 */
+    .result-card {
+        background: rgba(255,240,245,0.9);
+        border: 2px solid #FF69B4;
+        border-radius: 24px;
+        padding: 18px;
+        margin: 20px 0;
+        box-shadow: 0 4px 15px rgba(255,105,180,0.25);
+    }
 </style>
 """, unsafe_allow_html=True)
 
