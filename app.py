@@ -42,7 +42,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🍬 JENNY对账机器人")
+st.title("🍬 JENNY对账机器人 · 甜蜜版")
 
 # ---------- 选择工作模式 ----------
 work_mode = st.selectbox("🌟 请选择对账模式", ["财务系统-日记账对账", "消耗账单对账 (新)"])
@@ -53,8 +53,50 @@ work_mode = st.selectbox("🌟 请选择对账模式", ["财务系统-日记账�
 if work_mode == "财务系统-日记账对账":
     # ---------- 原有所有代码（完全不变） ----------
     # 这里插入你之前完整可运行的财务对账代码（因过于庞大，此处省略，实际使用时请粘贴）
-    st.warning("请将原有的完整对账代码粘贴到此分支。")
-    # 你之前的所有上传、处理、对账、下载逻辑都放在这里。
+    st.warning("import streamlit as st
+import pandas as pd
+import numpy as np
+import io
+import warnings
+from datetime import datetime
+
+warnings.filterwarnings('ignore')
+
+st.set_page_config(page_title="🌸 JENNY对账机器人", layout="wide")
+
+# ========== 甜美可爱主题 ==========
+st.markdown("""
+<style>
+    .main, .stApp { background: linear-gradient(135deg, #FFF0F5 0%, #FFE4E1 100%); }
+    h1 { color: #FF69B4 !important; text-shadow: 2px 2px 4px rgba(255,182,193,0.5); }
+    h2, h3, h4 { color: #DB7093 !important; }
+    .stFileUploader, .stSelectbox, .stMultiSelect, .stButton>button, .stDateInput {
+        border: 2px solid #FFB6C1 !important; border-radius: 20px !important;
+        background: rgba(255,255,255,0.8) !important; backdrop-filter: blur(5px);
+        box-shadow: 0 4px 15px rgba(255,182,193,0.3); transition: 0.3s;
+    }
+    .stFileUploader:hover, .stSelectbox:hover, .stMultiSelect:hover { box-shadow: 0 6px 20px rgba(255,105,180,0.4); }
+    .stButton>button {
+        background: linear-gradient(135deg, #FFB6C1, #FF69B4) !important;
+        color: white !important; font-weight: bold; border: none !important;
+        border-radius: 30px !important; padding: 10px 30px !important; transition: 0.3s;
+    }
+    .stButton>button:hover {
+        background: linear-gradient(135deg, #FF69B4, #FF1493) !important;
+        box-shadow: 0 10px 25px rgba(255,105,180,0.6); transform: translateY(-2px);
+    }
+    .stFileUploader label, .stSelectbox label, .stMultiSelect label, .stDateInput label { color: #C71585 !important; font-weight: 700; }
+    .stAlert { background: #FFE4E1 !important; border: 1px solid #FFB6C1 !important; color: #C71585 !important; border-radius: 15px !important; }
+    .css-1d391kg, .css-1lcbmhc, .css-1out211 { background: #FFE4E1; border-radius: 20px; }
+    .stDownloadButton>button { background: #FFB6C1 !important; color: white !important; border: none !important; border-radius: 30px !important; box-shadow: 0 4px 15px rgba(255,182,193,0.3); }
+    p, span, div { color: #4A2545; }
+    ::-webkit-scrollbar { width: 10px; }
+    ::-webkit-scrollbar-track { background: #FFF0F5; }
+    ::-webkit-scrollbar-thumb { background: #FFB6C1; border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: #FF69B4; }
+</style>
+""", unsafe_allow_html=True)
+
 st.title("🍬 JENNY对账机器人")
 st.markdown("""
 <div style="background:#FFE4E1; padding:15px; border-radius:20px; margin-bottom:20px;">
@@ -673,7 +715,8 @@ if st.button("✨ 开始自动对账", type="primary"):
                 data=output.getvalue(),
                 file_name=report_name,
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
+            )")
+    # 你之前的所有上传、处理、对账、下载逻辑都放在这里。
 
 # =================================================================
 # 模式二：消耗账单对账（新增功能）
@@ -759,7 +802,7 @@ else:
         if not consumption_files1:
             st.error("请至少上传第一份消耗账单！")
         else:
-            with st.spinner('🍬 JENNY 正在处理消耗账单，请稍候...'):
+            with st.spinner('🍬 JENNY 正在甜蜜处理消耗账单，请稍候...'):
                 df1 = clean_consumption_bill(consumption_files1)
                 if df1.empty:
                     st.error("清洗后无有效数据，请检查账单格式。")
