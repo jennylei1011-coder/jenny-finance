@@ -42,13 +42,13 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🍬 JENNY对账机器人 · 甜蜜版")
+st.title("🍬 JENNY对账机器人")
 
 # ---------- 选择工作模式 ----------
 work_mode = st.selectbox("🌟 请选择对账模式", ["财务系统-日记账对账", "消耗账单对账 (新)"])
 
 # =================================================================
-# 模式一：原有财务系统-日记账对账（完全保留）
+# 模式一：原有财务系统-日记账对账（持久化下载按钮）
 # =================================================================
 if work_mode == "财务系统-日记账对账":
     st.markdown("""
@@ -651,16 +651,24 @@ if work_mode == "财务系统-日记账对账":
                     plat_str = platform_scope.replace("仅 ", "")
                 report_name = f"{client_str}-{channel_str}-{plat_str}-{today_str}对账报告.xlsx"
 
-                st.success("🎉 对账完成！请下载报告～")
-                st.download_button(
-                    label="📥 下载对账报告",
-                    data=output.getvalue(),
-                    file_name=report_name,
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
+                # 持久化存储
+                st.session_state['mode1_report_data'] = output.getvalue()
+                st.session_state['mode1_report_name'] = report_name
+                st.session_state['mode1_success'] = "🎉 对账完成！请下载报告～"
+
+    # ========== 显示持久化的下载按钮 ==========
+    if 'mode1_report_data' in st.session_state:
+        st.success(st.session_state['mode1_success'])
+        st.download_button(
+            label="📥 下载对账报告",
+            data=st.session_state['mode1_report_data'],
+            file_name=st.session_state['mode1_report_name'],
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key="mode1_download"
+        )
 
 # =================================================================
-# 模式二：消耗账单对账（增加清洗明细导出）
+# 模式二：消耗账单对账（持久化下载按钮）
 # =================================================================
 else:
     st.header("📊 消耗账单清洗 / 对账")
@@ -848,31 +856,31 @@ else:
         if not consumption_files1:
             st.error("请至少上传第一份消耗账单！")
         else:
-            with st.spinner('🍬 JENNY 正在甜蜜处理消耗账单，请稍候...'):
+            with st.spinner('🍬 JENNY 正在处理消耗账单，请稍候...'):
                 df1 = clean_consumption_bill(consumption_files1)
                 if df1.empty:
                     st.error("清洗后无有效数据，请检查账单格式。")
                 else:
-                    # 根据所选客户过滤
                     if selected_clients_cons:
                         df1 = df1[df1['客户'].isin(selected_clients_cons)]
                         if df1.empty:
                             st.warning("筛选客户后，第一份账单无数据，请重新选择客户或检查账单。")
                             st.stop()
 
-                    # 只有一份账单时，只输出清洗结果
+                    # 只有一份账单时，保存清洗结果
                     if not consumption_files2:
-                        st.success(f"✅ 清洗完成，共 {len(df1)} 条有效记录")
-                        st.dataframe(df1)
                         output = io.BytesIO()
                         with pd.ExcelWriter(output, engine='openpyxl') as writer:
                             df1.to_excel(writer, sheet_name="清洗结果", index=False)
-                        st.download_button(
-                            label="📥 下载清洗明细",
-                            data=output.getvalue(),
-                            file_name=f"消耗账单清洗_{datetime.today().strftime('%Y%m%d')}.xlsx",
-                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                        )
+                        st.session_state['mode2_detail_data'] = output.getvalue()
+                        st.session_state['mode2_detail_name'] = f"消耗账单清洗_{datetime.today().strftime('%Y%m%d')}.xlsx"
+                        st.session_state['mode2_success'] = f"✅ 清洗完成，共 {len(df1)} 条有效记录"
+                        st.session_state['mode2_show_dataframe'] = df1
+                        # 清除可能有冲突的报告数据
+                        if 'mode2_report_data' in st.session_state:
+                            del st.session_state['mode2_report_data']
+                        if 'mode2_report_name' in st.session_state:
+                            del st.session_state['mode2_report_name']
                     else:
                         df2 = clean_consumption_bill(consumption_files2)
                         if df2.empty:
@@ -912,7 +920,7 @@ else:
                             extra_in_2 = merged[merged['消耗_1'] == 0]
                             diff = merged[(merged['消耗_1'] != 0) & (merged['消耗_2'] != 0) & (abs(merged['差异']) > 0.001)]
 
-                            # ---------- 对账报告 ----------
+                            # 对账报告
                             output_report = io.BytesIO()
                             with pd.ExcelWriter(output_report, engine='openpyxl') as writer:
                                 summary = pd.DataFrame({
@@ -926,23 +934,53 @@ else:
                                 if not diff.empty:
                                     diff[cols_out + ['消耗_1', '消耗_2', '差异']].to_excel(writer, sheet_name="3.消耗差异", index=False)
 
-                            st.success(f"🎉 对账完成：漏记 {len(missing_in_2)}，多记 {len(extra_in_2)}，消耗差异 {len(diff)}")
-                            st.download_button(
-                                label="📥 下载对账报告",
-                                data=output_report.getvalue(),
-                                file_name=f"消耗对账_{datetime.today().strftime('%Y%m%d')}.xlsx",
-                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                            )
-
-                            # ---------- 清洗明细（两个账单） ----------
+                            # 清洗明细（两个账单）
                             output_detail = io.BytesIO()
                             with pd.ExcelWriter(output_detail, engine='openpyxl') as writer:
                                 df1.to_excel(writer, sheet_name="账单①清洗明细", index=False)
                                 df2.to_excel(writer, sheet_name="账单②清洗明细", index=False)
 
-                            st.download_button(
-                                label="📥 下载清洗明细（两份账单）",
-                                data=output_detail.getvalue(),
-                                file_name=f"消耗账单清洗明细_{datetime.today().strftime('%Y%m%d')}.xlsx",
-                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                            )
+                            # 持久化存储
+                            st.session_state['mode2_report_data'] = output_report.getvalue()
+                            st.session_state['mode2_report_name'] = f"消耗对账_{datetime.today().strftime('%Y%m%d')}.xlsx"
+                            st.session_state['mode2_detail_data'] = output_detail.getvalue()
+                            st.session_state['mode2_detail_name'] = f"消耗账单清洗明细_{datetime.today().strftime('%Y%m%d')}.xlsx"
+                            st.session_state['mode2_success'] = f"🎉 对账完成：漏记 {len(missing_in_2)}，多记 {len(extra_in_2)}，消耗差异 {len(diff)}"
+                            st.session_state['mode2_show_dataframe'] = None  # 不显示明细表，直接下载
+                            # 清除可能冲突的单份清洗标记
+                            if 'mode2_only_detail' in st.session_state:
+                                del st.session_state['mode2_only_detail']
+
+    # ========== 显示持久化的下载按钮 ==========
+    if 'mode2_report_data' in st.session_state:
+        # 有两份账单，显示对账报告和明细下载
+        st.success(st.session_state['mode2_success'])
+        col_dl1, col_dl2 = st.columns(2)
+        with col_dl1:
+            st.download_button(
+                label="📥 下载对账报告",
+                data=st.session_state['mode2_report_data'],
+                file_name=st.session_state['mode2_report_name'],
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key="mode2_report_dl"
+            )
+        with col_dl2:
+            st.download_button(
+                label="📥 下载清洗明细",
+                data=st.session_state['mode2_detail_data'],
+                file_name=st.session_state['mode2_detail_name'],
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key="mode2_detail_dl"
+            )
+    elif 'mode2_detail_data' in st.session_state:
+        # 只有一份账单，显示清洗结果和下载
+        st.success(st.session_state['mode2_success'])
+        if 'mode2_show_dataframe' in st.session_state and st.session_state['mode2_show_dataframe'] is not None:
+            st.dataframe(st.session_state['mode2_show_dataframe'])
+        st.download_button(
+            label="📥 下载清洗明细",
+            data=st.session_state['mode2_detail_data'],
+            file_name=st.session_state['mode2_detail_name'],
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key="mode2_single_dl"
+        )
