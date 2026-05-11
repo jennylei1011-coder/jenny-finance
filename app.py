@@ -9,84 +9,299 @@ warnings.filterwarnings('ignore')
 
 st.set_page_config(page_title="🌸 JENNY对账机器人", layout="wide")
 
-# ========== 甜美可爱主题（全局） ==========
+# ========== 粉色系简洁主题（全局） ==========
 st.markdown("""
 <style>
-    /* 全局背景 */
-    .main, .stApp { background: linear-gradient(135deg, #FFF0F5 0%, #FFE4E1 100%); }
-    /* 卡片容器 */
-    .card {
-        background: rgba(255,255,255,0.75);
-        backdrop-filter: blur(10px);
-        border-radius: 24px;
-        padding: 20px 25px;
-        margin: 15px 0;
-        box-shadow: 0 8px 32px rgba(255,182,193,0.2);
-        border: 1px solid rgba(255,182,193,0.4);
+    :root {
+        --pink-25: #fff8fb;
+        --pink-50: #fff1f6;
+        --pink-100: #ffe1ec;
+        --pink-200: #ffc7da;
+        --pink-400: #f26aa2;
+        --pink-500: #db4b87;
+        --ink: #3b2630;
+        --muted: #7c5b68;
+        --line: rgba(219, 75, 135, 0.18);
+        --panel: rgba(255, 255, 255, 0.86);
+        --shadow: 0 16px 44px rgba(177, 77, 116, 0.14);
     }
-    h1 { color: #FF69B4 !important; text-shadow: 2px 2px 4px rgba(255,182,193,0.5); font-size: 2.8rem !important; }
-    h2 { color: #DB7093 !important; border-bottom: 2px dashed #FFB6C1; padding-bottom: 0.3rem; }
-    h3 { color: #C71585 !important; }
-    h4 { color: #DB7093 !important; }
-    .stFileUploader, .stSelectbox, .stMultiSelect, .stButton>button, .stDateInput {
-        border: 2px solid #FFB6C1 !important; border-radius: 20px !important;
-        background: rgba(255,255,255,0.8) !important; backdrop-filter: blur(5px);
-        box-shadow: 0 4px 15px rgba(255,182,193,0.3); transition: 0.3s;
+
+    .stApp {
+        background:
+            radial-gradient(circle at top left, rgba(255, 205, 223, 0.68), transparent 34rem),
+            linear-gradient(135deg, #fffafd 0%, #fff1f6 45%, #ffe7f0 100%);
     }
-    .stFileUploader:hover, .stSelectbox:hover, .stMultiSelect:hover { box-shadow: 0 6px 20px rgba(255,105,180,0.4); }
-    .stButton>button {
-        background: linear-gradient(135deg, #FFB6C1, #FF69B4) !important;
-        color: white !important; font-weight: bold; border: none !important;
-        border-radius: 30px !important; padding: 10px 30px !important; transition: 0.3s;
-        font-size: 1.1rem;
+
+    .block-container {
+        max-width: 1180px;
+        padding-top: 2rem;
+        padding-bottom: 4rem;
     }
-    .stButton>button:hover {
-        background: linear-gradient(135deg, #FF69B4, #FF1493) !important;
-        box-shadow: 0 10px 25px rgba(255,105,180,0.6); transform: translateY(-2px);
+
+    header[data-testid="stHeader"], footer, #MainMenu {
+        visibility: hidden;
     }
-    .stFileUploader label, .stSelectbox label, .stMultiSelect label, .stDateInput label { color: #C71585 !important; font-weight: 700; }
-    .stAlert { background: #FFE4E1 !important; border: 1px solid #FFB6C1 !important; color: #C71585 !important; border-radius: 15px !important; }
-    .stDownloadButton>button { background: #FFB6C1 !important; color: white !important; border: none !important; border-radius: 30px !important; box-shadow: 0 4px 15px rgba(255,182,193,0.3); }
-    .stDownloadButton>button:hover { background: #FF69B4 !important; }
-    p, span, div { color: #4A2545; }
-    ::-webkit-scrollbar { width: 10px; }
-    ::-webkit-scrollbar-track { background: #FFF0F5; }
-    ::-webkit-scrollbar-thumb { background: #FFB6C1; border-radius: 10px; }
-    ::-webkit-scrollbar-thumb:hover { background: #FF69B4; }
-    /* 结果卡片 */
-    .result-card {
-        background: rgba(255,240,245,0.9);
-        border: 2px solid #FF69B4;
-        border-radius: 24px;
-        padding: 18px;
-        margin: 20px 0;
-        box-shadow: 0 4px 15px rgba(255,105,180,0.25);
+
+    .app-hero {
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(135deg, rgba(255,255,255,0.92), rgba(255,239,247,0.9));
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        padding: 28px 32px;
+        margin-bottom: 18px;
+        box-shadow: var(--shadow);
+    }
+
+    .app-hero:after {
+        content: "";
+        position: absolute;
+        right: -90px;
+        top: -120px;
+        width: 300px;
+        height: 300px;
+        background: radial-gradient(circle, rgba(242,106,162,0.18), transparent 66%);
+    }
+
+    .hero-kicker {
+        color: var(--pink-500);
+        font-size: 0.86rem;
+        font-weight: 700;
+        letter-spacing: 0;
+        margin-bottom: 8px;
+    }
+
+    .hero-title {
+        color: var(--ink);
+        font-size: 2.25rem;
+        line-height: 1.15;
+        font-weight: 800;
+        margin: 0;
+    }
+
+    .hero-subtitle {
+        color: var(--muted);
+        max-width: 720px;
+        margin: 10px 0 0 0;
+        line-height: 1.75;
+        font-size: 1rem;
+    }
+
+    .guide-card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 18px 20px;
+        margin: 12px 0 24px;
+        box-shadow: 0 10px 28px rgba(177, 77, 116, 0.09);
+    }
+
+    .guide-title {
+        color: var(--pink-500);
+        font-weight: 800;
+        margin-bottom: 12px;
+    }
+
+    .guide-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .guide-step {
+        min-height: 74px;
+        background: #fff9fc;
+        border: 1px solid rgba(255, 199, 218, 0.72);
+        border-radius: 14px;
+        padding: 12px 14px;
+        color: var(--muted);
+        line-height: 1.55;
+    }
+
+    .guide-step b {
+        display: block;
+        color: var(--ink);
+        margin-bottom: 3px;
+    }
+
+    .section-title {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 28px 0 12px;
+    }
+
+    .section-title .dot {
+        width: 10px;
+        height: 28px;
+        border-radius: 999px;
+        background: linear-gradient(180deg, var(--pink-400), var(--pink-200));
+        box-shadow: 0 8px 18px rgba(242, 106, 162, 0.28);
+    }
+
+    .section-title h2 {
+        color: var(--ink) !important;
+        font-size: 1.18rem !important;
+        line-height: 1.35;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+    }
+
+    .section-title p {
+        color: var(--muted);
+        margin: 2px 0 0;
+        font-size: 0.92rem;
+    }
+
+    h1, h2, h3, h4, p, span, div, label {
+        letter-spacing: 0 !important;
+    }
+
+    h1 {
+        color: var(--ink) !important;
+    }
+
+    h2, h3, h4 {
+        color: var(--ink) !important;
+    }
+
+    .stFileUploader, .stSelectbox, .stMultiSelect, .stDateInput, .stCheckbox, .stRadio {
+        background: rgba(255, 255, 255, 0.72);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 12px 14px;
+        box-shadow: 0 8px 24px rgba(177, 77, 116, 0.07);
+    }
+
+    .stFileUploader:hover, .stSelectbox:hover, .stMultiSelect:hover, .stDateInput:hover {
+        border-color: rgba(219, 75, 135, 0.42);
+        box-shadow: 0 10px 28px rgba(177, 77, 116, 0.12);
+    }
+
+    .stFileUploader label, .stSelectbox label, .stMultiSelect label, .stDateInput label, .stCheckbox label, .stRadio label {
+        color: var(--ink) !important;
+        font-weight: 700;
+    }
+
+    .stButton > button, .stDownloadButton > button {
+        width: 100%;
+        min-height: 46px;
+        border: 0 !important;
+        border-radius: 999px !important;
+        background: linear-gradient(135deg, var(--pink-500), var(--pink-400)) !important;
+        color: white !important;
+        font-weight: 800 !important;
+        box-shadow: 0 12px 28px rgba(219, 75, 135, 0.26);
+        transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+    }
+
+    .stButton > button:hover, .stDownloadButton > button:hover {
+        transform: translateY(-1px);
+        filter: brightness(1.02);
+        box-shadow: 0 16px 34px rgba(219, 75, 135, 0.32);
+    }
+
+    .stAlert {
+        border-radius: 14px !important;
+        border: 1px solid var(--line) !important;
+        background: rgba(255, 248, 251, 0.92) !important;
+        color: var(--ink) !important;
+    }
+
+    div[data-baseweb="select"] > div,
+    div[data-baseweb="input"] > div {
+        border-radius: 12px !important;
+        border-color: rgba(219, 75, 135, 0.22) !important;
+    }
+
+    div[data-testid="stFileUploaderDropzone"] {
+        border-radius: 14px !important;
+        border-color: rgba(219, 75, 135, 0.24) !important;
+        background: #fffafd !important;
+    }
+
+    .stDataFrame {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        overflow: hidden;
+    }
+
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track { background: var(--pink-50); }
+    ::-webkit-scrollbar-thumb { background: var(--pink-200); border-radius: 999px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--pink-400); }
+
+    @media (max-width: 760px) {
+        .block-container { padding-top: 1rem; }
+        .app-hero { padding: 22px 20px; border-radius: 18px; }
+        .hero-title { font-size: 1.72rem; }
+        .guide-grid { grid-template-columns: 1fr; }
     }
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🍬 JENNY对账机器人")
+def section_title(title, subtitle=""):
+    st.markdown(
+        f"""
+        <div class="section-title">
+            <div class="dot"></div>
+            <div>
+                <h2>{title}</h2>
+                <p>{subtitle}</p>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+def guide_card(title, steps):
+    step_html = "".join(
+        f'<div class="guide-step"><b>{idx}. {step[0]}</b>{step[1]}</div>'
+        for idx, step in enumerate(steps, start=1)
+    )
+    st.markdown(
+        f"""
+        <div class="guide-card">
+            <div class="guide-title">{title}</div>
+            <div class="guide-grid">{step_html}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+st.markdown("""
+<div class="app-hero">
+    <div class="hero-kicker">JENNY BILL RECONCILIATION</div>
+    <h1 class="hero-title">JENNY 对账机器人</h1>
+    <p class="hero-subtitle">上传账单和客户档案，按平台、渠道、客户和时间快速整理差异，生成可下载的 Excel 报告。</p>
+</div>
+""", unsafe_allow_html=True)
 
 # ---------- 选择工作模式 ----------
-work_mode = st.selectbox("🌟 请选择对账模式", ["财务系统-日记账对账", "消耗账单对账 (新)"])
+work_mode = st.radio(
+    "选择对账模式",
+    ["财务系统-日记账对账", "消耗账单对账 (新)"],
+    horizontal=True,
+)
 
 # =================================================================
 # 模式一：原有财务系统-日记账对账（持久化下载按钮）
 # =================================================================
 if work_mode == "财务系统-日记账对账":
-    st.markdown("""
-    <div style="background:#FFE4E1; padding:15px; border-radius:20px; margin-bottom:20px;">
-    🌸 <b>使用流程：</b><br>
-    1. 上传 FB / TT 客户档案（可多选，只需传一次～）<br>
-    2. 上传系统账单（支持多文件）<br>
-    3. 上传 FB / TT 日记账<br>
-    4. 选择时间、平台、渠道、客户（可选），然后点 <span style="color:#FF69B4;">✨ 开始对账 ✨</span>
-    </div>
-    """, unsafe_allow_html=True)
+    guide_card(
+        "财务系统 - 日记账对账流程",
+        [
+            ("客户档案", "上传 FB / TT 客户档案，可多选，页面打开期间会记住。"),
+            ("系统账单", "上传系统账单，支持多文件和多工作表 Excel。"),
+            ("人工日记账", "分别上传 FB / TT 日记账，系统会自动清洗字段。"),
+            ("筛选导出", "选择时间、平台、渠道、客户后生成对账报告。"),
+        ],
+    )
 
     # ========== 客户档案上传区 ==========
-    st.subheader("📁 客户档案（带记忆，支持多文件上传）")
-    st.info("⚠️ 请勿关闭页面或刷新，否则需重新上传客户档案哟~", icon="🧸")
+    section_title("客户档案", "上传 FB / TT 档案，用于匹配账号、渠道和客户。")
+    st.info("请勿关闭页面或刷新，否则需重新上传客户档案。")
 
     col_cus1, col_cus2 = st.columns(2)
     with col_cus1:
@@ -188,18 +403,21 @@ if work_mode == "财务系统-日记账对账":
         tt_customers = None
 
     # ========== 系统账单上传区 ==========
-    st.subheader("🏢 系统账单上传区")
-    system_files = st.file_uploader("📤 上传系统账单（可多选，支持多工作表Excel）", type=["xlsx", "xls"], accept_multiple_files=True)
+    section_title("系统账单", "支持多文件、多工作表 Excel。")
+    system_files = st.file_uploader("上传系统账单（可多选，支持多工作表 Excel）", type=["xlsx", "xls"], accept_multiple_files=True)
 
     # ========== 日记账上传区 ==========
-    st.subheader("📝 人工日记账上传区")
+    section_title("人工日记账", "分别上传 Facebook 和 TikTok 日记账。")
     col_j1, col_j2 = st.columns(2)
     with col_j1:
         fb_journal_files = st.file_uploader("🔵 上传 FB 日记账（可多选）", type=["xlsx", "xls"], accept_multiple_files=True)
     with col_j2:
         tt_journal_files = st.file_uploader("🟠 上传 TT 日记账（可多选）", type=["xlsx", "xls"], accept_multiple_files=True)
 
-    platform_scope = st.selectbox("🔍 选择本次对账平台范围", ["全部平台", "仅 Facebook", "仅 TikTok"])
+    section_title("筛选条件", "按平台、渠道、客户和日期缩小本次核对范围。")
+    filter_col1, filter_col2 = st.columns([1, 2])
+    with filter_col1:
+        platform_scope = st.selectbox("🔍 选择本次对账平台范围", ["全部平台", "仅 Facebook", "仅 TikTok"])
 
     channel_options = ['全部渠道']
     if fb_customers is not None or tt_customers is not None:
@@ -214,11 +432,12 @@ if work_mode == "财务系统-日记账对账":
             channel_options.append('钛动')
         channel_options += sorted(all_channels)
 
-    selected_channels = st.multiselect(
-        "📌 选择渠道（可多选，默认全部）",
-        options=channel_options,
-        default=['全部渠道']
-    )
+    with filter_col2:
+        selected_channels = st.multiselect(
+            "📌 选择渠道（可多选，默认全部）",
+            options=channel_options,
+            default=['全部渠道']
+        )
 
     client_options = []
     if fb_customers is not None or tt_customers is not None:
@@ -230,13 +449,16 @@ if work_mode == "财务系统-日记账对账":
         all_clients.discard('')
         client_options = sorted(all_clients)
 
-    selected_clients = st.multiselect(
-        "🧑 选择客户（可多选，默认全部）",
-        options=client_options,
-        default=[]
-    )
+    filter_col3, filter_col4 = st.columns([2, 1])
+    with filter_col3:
+        selected_clients = st.multiselect(
+            "🧑 选择客户（可多选，默认全部）",
+            options=client_options,
+            default=[]
+        )
+    with filter_col4:
+        use_custom_date = st.checkbox("📅 启用自定义日期范围", value=False)
 
-    use_custom_date = st.checkbox("📅 启用自定义日期范围", value=False)
     if use_custom_date:
         col_t1, col_t2 = st.columns(2)
         with col_t1:
@@ -694,18 +916,18 @@ if work_mode == "财务系统-日记账对账":
 # 模式二：消耗账单对账（持久化下载按钮）
 # =================================================================
 else:
-    st.header("📊 消耗账单清洗 / 对账")
-
-    st.markdown("""
-    1. 上传 **FB / TT 客户档案**（可选，用于标注平台和客户）  
-    2. 上传 **第一份消耗账单**（可多文件）  
-    3. （可选）上传 **第二份消耗账单** 进行差异核对  
-    4. 选择客户（需先上传档案），点击按钮开始处理  
-    **对账规则**：汇总每个账号ID的总消耗，比较两个账单的总额差异。
-    """)
+    guide_card(
+        "消耗账单清洗 / 对账流程",
+        [
+            ("客户档案", "可选上传 FB / TT 档案，用于标注平台和客户。"),
+            ("第一份账单", "上传需要清洗或作为基准的消耗账单。"),
+            ("第二份账单", "可选上传，用于核对账号维度的消耗差异。"),
+            ("生成结果", "按客户筛选后导出清洗明细或差异报告。"),
+        ],
+    )
 
     # ----- 客户档案上传（消耗对账专用） -----
-    st.subheader("📁 客户档案（可选，用于匹配平台和客户）")
+    section_title("客户档案", "可选上传，用于自动标注平台、渠道和客户。")
     col_c1, col_c2 = st.columns(2)
     with col_c1:
         cons_fb_files = st.file_uploader("🔵 FB 客户档案", type=["xlsx", "xls"], accept_multiple_files=True, key="cons_fb_cus")
@@ -814,6 +1036,7 @@ else:
             st.info("上传档案后，这里可以选择特定客户进行核对")
 
     # 消耗账单上传区
+    section_title("消耗账单", "上传一份账单会生成清洗明细；上传两份账单会额外生成差异报告。")
     col_a, col_b = st.columns(2)
     with col_a:
         consumption_files1 = st.file_uploader("📤 消耗账单 ①（可多选）", type=["xlsx", "xls"], accept_multiple_files=True, key="cons1")
