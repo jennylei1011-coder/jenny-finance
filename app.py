@@ -660,7 +660,7 @@ if work_mode == "财务系统-日记账对账":
                 )
 
 # =================================================================
-# 模式二：消耗账单对账（新增客户档案匹配 + 客户选择）
+# 模式二：消耗账单对账（已修复列名类型问题）
 # =================================================================
 else:
     st.header("📊 消耗账单清洗 / 对账")
@@ -690,7 +690,9 @@ else:
             df = pd.read_excel(f, dtype=str)
             if df.empty:
                 continue
-            # 标准化列名
+            # 标准化列名 - 先确保列名都是字符串，避免非字符串列名导致的.lower()错误
+            df.columns = [str(c) for c in df.columns]
+
             rename_map = {
                 '账号ID': ['账号ID', '广告账户', '账户ID', 'meta_id', 'account_id'],
                 '账号名称': ['账号名称', '账户名称', 'account_name'],
@@ -741,7 +743,6 @@ else:
         for _, row in fb_cus.iterrows():
             cid = row['账号ID']
             if cid:
-                # 客户名称转为字符串并strip
                 client_str = str(row.get('客户', '')).strip()
                 customer_dict[cid] = {
                     '平台': 'FB',
@@ -801,6 +802,9 @@ else:
             df = pd.read_excel(f, dtype=str)
             if df.empty:
                 continue
+            # 修复：强制列名为字符串，防止整数列名引发.lower()错误
+            df.columns = [str(c) for c in df.columns]
+
             rename_map = {
                 '账号名称': ['广告账户名称', '账户名称', '账号名称'],
                 '账号ID': ['账户ID', '广告账户ID', '账号ID'],
