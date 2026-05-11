@@ -660,7 +660,7 @@ if work_mode == "财务系统-日记账对账":
                 )
 
 # =================================================================
-# 模式二：消耗账单对账（新增客户档案匹配功能）
+# 模式二：消耗账单对账（新增客户档案匹配 + 客户选择）
 # =================================================================
 else:
     st.header("📊 消耗账单清洗 / 对账")
@@ -669,7 +669,7 @@ else:
     1. 上传 **FB / TT 客户档案**（可选，用于标注平台和客户）  
     2. 上传 **第一份消耗账单**（可多文件）  
     3. （可选）上传 **第二份消耗账单** 进行差异核对  
-    4. 点击按钮开始处理  
+    4. 选择客户（需先上传档案），点击按钮开始处理  
     **对账规则**：汇总每个账号ID的总消耗，比较两个账单的总额差异。
     """)
 
@@ -736,6 +736,7 @@ else:
 
     # 合并客户档案字典
     customer_dict = {}
+    all_client_options = set()
     if not fb_cus.empty:
         for _, row in fb_cus.iterrows():
             cid = row['账号ID']
@@ -745,6 +746,8 @@ else:
                     '客户': row.get('客户', ''),
                     '渠道': row.get('渠道', '')
                 }
+                if row.get('客户', ''):
+                    all_client_options.add(row['客户'])
     if not tt_cus.empty:
         for _, row in tt_cus.iterrows():
             cid = row['账号ID']
@@ -754,6 +757,8 @@ else:
                     '客户': row.get('客户', ''),
                     '渠道': row.get('渠道', '')
                 }
+                if row.get('客户', ''):
+                    all_client_options.add(row['客户'])
 
     # 显示档案加载情况
     total_customers = len(customer_dict)
@@ -761,6 +766,21 @@ else:
         st.success(f"🌸 已加载客户档案，共 {total_customers} 个账号ID")
     else:
         st.info("未上传客户档案，将不标注平台和客户")
+
+    # 客户选择（仅在有档案时显示）
+    client_options = sorted(list(all_client_options))
+    if client_options:
+        selected_clients_cons = st.multiselect(
+            "🧑 选择要核对的客户（可多选，默认全部）",
+            options=client_options,
+            default=[]
+        )
+    else:
+        selected_clients_cons = []
+        if total_customers > 0:
+            st.info("档案中未找到客户信息，无法按客户筛选")
+        else:
+            st.info("上传档案后，这里可以选择特定客户进行核对")
 
     # 消耗账单上传区
     col_a, col_b = st.columns(2)
@@ -802,7 +822,7 @@ else:
             df['消耗'] = pd.to_numeric(df['消耗'], errors='coerce').fillna(0)
             df['日期'] = pd.to_datetime(df['日期'], errors='coerce', format='mixed').dt.strftime("%Y-%m-%d")
 
-            # 若账号ID列不是纯数字（例如存成了名称），与账号名称互换
+            # 若账号ID列不是纯数字，与账号名称互换
             def swap_if_needed(row):
                 acc_id = str(row['账号ID'])
                 if not acc_id.isdigit():
@@ -818,7 +838,6 @@ else:
             # 匹配平台和客户
             df['平台'] = df['账号ID'].map(lambda x: customer_dict.get(x, {}).get('平台', '未知') if customer_dict else '未上传档案')
             df['客户'] = df['账号ID'].map(lambda x: customer_dict.get(x, {}).get('客户', '') if customer_dict else '')
-            # 渠道暂时不展示，如需可加
             df = df[['账号ID', '账号名称', '消耗', '日期', '平台', '客户']].dropna(subset=['账号ID'])
             df_list.append(df)
 
@@ -835,6 +854,13 @@ else:
                 if df1.empty:
                     st.error("清洗后无有效数据，请检查账单格式。")
                 else:
+                    # 根据所选客户过滤（如果选择了客户）
+                    if selected_clients_cons:
+                        df1 = df1[df1['客户'].isin(selected_clients_cons)]
+                        if df1.empty:
+                            st.warning("筛选客户后，第一份账单无数据，请重新选择客户或检查账单。")
+                            st.stop()
+
                     if not consumption_files2:
                         st.success(f"✅ 清洗完成，共 {len(df1)} 条有效记录")
                         st.dataframe(df1)
@@ -852,6 +878,13 @@ else:
                         if df2.empty:
                             st.error("第二份账单清洗后无有效数据。")
                         else:
+                            # 同样按客户过滤第二份
+                            if selected_clients_cons:
+                                df2 = df2[df2['客户'].isin(selected_clients_cons)]
+                                if df2.empty:
+                                    st.warning("筛选客户后，第二份账单无数据，无法比对。")
+                                    st.stop()
+
                             # 汇总每个账号ID的总消耗，并保留平台和客户
                             agg1 = df1.groupby('账号ID').agg(
                                 账号名称=('账号名称', 'first'),
@@ -888,7 +921,6 @@ else:
                                     "数量": [len(missing_in_2), len(extra_in_2), len(diff)]
                                 })
                                 summary.to_excel(writer, sheet_name="对账汇总", index=False)
-                                # 输出时包含平台和客户
                                 cols_out = ['账号ID', '账号名称', '平台', '客户']
                                 missing_in_2[cols_out + ['消耗_1']].to_excel(writer, sheet_name="1.漏记", index=False)
                                 extra_in_2[cols_out + ['消耗_2']].to_excel(writer, sheet_name="2.多记", index=False)
