@@ -51,8 +51,6 @@ work_mode = st.selectbox("🌟 请选择对账模式", ["财务系统-日记账�
 # 模式一：原有财务系统-日记账对账（完全保留）
 # =================================================================
 if work_mode == "财务系统-日记账对账":
-    # 以下为你提供的原有完整代码，已移除重复的 set_page_config 和 CSS
-    # 直接运行原有逻辑
     st.markdown("""
     <div style="background:#FFE4E1; padding:15px; border-radius:20px; margin-bottom:20px;">
     🌸 <b>使用流程：</b><br>
@@ -662,18 +660,109 @@ if work_mode == "财务系统-日记账对账":
                 )
 
 # =================================================================
-# 模式二：消耗账单对账（新增功能）
+# 模式二：消耗账单对账（新增客户档案匹配功能）
 # =================================================================
 else:
     st.header("📊 消耗账单清洗 / 对账")
 
     st.markdown("""
-    1. 上传 **第一份消耗账单**（可多文件）  
-    2. （可选）上传 **第二份消耗账单** 进行差异核对  
-    3. 点击按钮开始处理  
+    1. 上传 **FB / TT 客户档案**（可选，用于标注平台和客户）  
+    2. 上传 **第一份消耗账单**（可多文件）  
+    3. （可选）上传 **第二份消耗账单** 进行差异核对  
+    4. 点击按钮开始处理  
     **对账规则**：汇总每个账号ID的总消耗，比较两个账单的总额差异。
     """)
 
+    # ----- 客户档案上传（消耗对账专用） -----
+    st.subheader("📁 客户档案（可选，用于匹配平台和客户）")
+    col_c1, col_c2 = st.columns(2)
+    with col_c1:
+        cons_fb_files = st.file_uploader("🔵 FB 客户档案", type=["xlsx", "xls"], accept_multiple_files=True, key="cons_fb_cus")
+    with col_c2:
+        cons_tt_files = st.file_uploader("🟠 TT 客户档案", type=["xlsx", "xls"], accept_multiple_files=True, key="cons_tt_cus")
+
+    # 读取并记忆客户档案
+    def load_cons_customer(files, plat):
+        if not files:
+            return pd.DataFrame()
+        frames = []
+        for f in files:
+            df = pd.read_excel(f, dtype=str)
+            if df.empty:
+                continue
+            # 标准化列名
+            rename_map = {
+                '账号ID': ['账号ID', '广告账户', '账户ID', 'meta_id', 'account_id'],
+                '账号名称': ['账号名称', '账户名称', 'account_name'],
+                '渠道': ['归属广告主', '广告主', '渠道'],
+                '客户': ['客户', '匹配客户', '分配客户', '客户标签']
+            }
+            lower_cols = {c.lower(): c for c in df.columns}
+            final_rename = {}
+            for std, candidates in rename_map.items():
+                for cand in candidates:
+                    if cand.lower() in lower_cols:
+                        final_rename[lower_cols[cand.lower()]] = std
+                        break
+            df = df.rename(columns=final_rename)
+            for col in ['账号ID', '账号名称']:
+                if col not in df.columns:
+                    df[col] = ''
+            df['账号ID'] = df['账号ID'].astype(str).str.strip()
+            df['账号名称'] = df['账号名称'].astype(str).str.strip()
+            df['平台'] = plat
+            frames.append(df)
+        if not frames:
+            return pd.DataFrame(columns=['账号ID', '账号名称', '渠道', '客户', '平台'])
+        return pd.concat(frames, ignore_index=True)
+
+    if cons_fb_files or 'cons_fb_customers' in st.session_state:
+        if cons_fb_files:
+            fb_cus = load_cons_customer(cons_fb_files, "FB")
+            st.session_state['cons_fb_customers'] = fb_cus
+        else:
+            fb_cus = st.session_state['cons_fb_customers']
+    else:
+        fb_cus = pd.DataFrame()
+
+    if cons_tt_files or 'cons_tt_customers' in st.session_state:
+        if cons_tt_files:
+            tt_cus = load_cons_customer(cons_tt_files, "TT")
+            st.session_state['cons_tt_customers'] = tt_cus
+        else:
+            tt_cus = st.session_state['cons_tt_customers']
+    else:
+        tt_cus = pd.DataFrame()
+
+    # 合并客户档案字典
+    customer_dict = {}
+    if not fb_cus.empty:
+        for _, row in fb_cus.iterrows():
+            cid = row['账号ID']
+            if cid:
+                customer_dict[cid] = {
+                    '平台': 'FB',
+                    '客户': row.get('客户', ''),
+                    '渠道': row.get('渠道', '')
+                }
+    if not tt_cus.empty:
+        for _, row in tt_cus.iterrows():
+            cid = row['账号ID']
+            if cid:
+                customer_dict[cid] = {
+                    '平台': 'TT',
+                    '客户': row.get('客户', ''),
+                    '渠道': row.get('渠道', '')
+                }
+
+    # 显示档案加载情况
+    total_customers = len(customer_dict)
+    if total_customers > 0:
+        st.success(f"🌸 已加载客户档案，共 {total_customers} 个账号ID")
+    else:
+        st.info("未上传客户档案，将不标注平台和客户")
+
+    # 消耗账单上传区
     col_a, col_b = st.columns(2)
     with col_a:
         consumption_files1 = st.file_uploader("📤 消耗账单 ①（可多选）", type=["xlsx", "xls"], accept_multiple_files=True, key="cons1")
@@ -681,6 +770,7 @@ else:
         consumption_files2 = st.file_uploader("📤 消耗账单 ②（可选，用于比对）", type=["xlsx", "xls"], accept_multiple_files=True, key="cons2")
 
     def clean_consumption_bill(files):
+        """清洗消耗账单，返回DataFrame包含：账号ID、账号名称、消耗、日期、平台、客户"""
         if not files:
             return pd.DataFrame()
         df_list = []
@@ -712,6 +802,7 @@ else:
             df['消耗'] = pd.to_numeric(df['消耗'], errors='coerce').fillna(0)
             df['日期'] = pd.to_datetime(df['日期'], errors='coerce', format='mixed').dt.strftime("%Y-%m-%d")
 
+            # 若账号ID列不是纯数字（例如存成了名称），与账号名称互换
             def swap_if_needed(row):
                 acc_id = str(row['账号ID'])
                 if not acc_id.isdigit():
@@ -724,11 +815,15 @@ else:
             df['账号ID'] = df['账号ID'].astype(str).str.strip()
             df['账号名称'] = df['账号名称'].astype(str).str.strip()
 
-            df = df[['账号ID', '账号名称', '消耗', '日期']].dropna(subset=['账号ID'])
+            # 匹配平台和客户
+            df['平台'] = df['账号ID'].map(lambda x: customer_dict.get(x, {}).get('平台', '未知') if customer_dict else '未上传档案')
+            df['客户'] = df['账号ID'].map(lambda x: customer_dict.get(x, {}).get('客户', '') if customer_dict else '')
+            # 渠道暂时不展示，如需可加
+            df = df[['账号ID', '账号名称', '消耗', '日期', '平台', '客户']].dropna(subset=['账号ID'])
             df_list.append(df)
 
         if not df_list:
-            return pd.DataFrame(columns=['账号ID', '账号名称', '消耗', '日期'])
+            return pd.DataFrame(columns=['账号ID', '账号名称', '消耗', '日期', '平台', '客户'])
         return pd.concat(df_list, ignore_index=True)
 
     if st.button("✨ 开始处理消耗账单", type="primary"):
@@ -757,12 +852,27 @@ else:
                         if df2.empty:
                             st.error("第二份账单清洗后无有效数据。")
                         else:
-                            agg1 = df1.groupby('账号ID').agg(账号名称=('账号名称', 'first'), 消耗_1=('消耗', 'sum')).reset_index()
-                            agg2 = df2.groupby('账号ID').agg(账号名称=('账号名称', 'first'), 消耗_2=('消耗', 'sum')).reset_index()
+                            # 汇总每个账号ID的总消耗，并保留平台和客户
+                            agg1 = df1.groupby('账号ID').agg(
+                                账号名称=('账号名称', 'first'),
+                                消耗_1=('消耗', 'sum'),
+                                平台=('平台', 'first'),
+                                客户=('客户', 'first')
+                            ).reset_index()
+                            agg2 = df2.groupby('账号ID').agg(
+                                账号名称=('账号名称', 'first'),
+                                消耗_2=('消耗', 'sum'),
+                                平台=('平台', 'first'),
+                                客户=('客户', 'first')
+                            ).reset_index()
 
-                            merged = pd.merge(agg1, agg2, on='账号ID', how='outer', suffixes=('', ''))
+                            merged = pd.merge(agg1, agg2, on='账号ID', how='outer', suffixes=('_x', '_y'))
+                            # 合并平台和客户字段
+                            merged['平台'] = merged['平台_x'].fillna(merged['平台_y'])
+                            merged['客户'] = merged['客户_x'].fillna(merged['客户_y'])
                             merged['账号名称'] = merged['账号名称_x'].fillna(merged['账号名称_y'])
-                            merged.drop(['账号名称_x', '账号名称_y'], axis=1, inplace=True)
+                            merged.drop(['平台_x', '平台_y', '客户_x', '客户_y', '账号名称_x', '账号名称_y'], axis=1, inplace=True)
+
                             merged['消耗_1'] = merged['消耗_1'].fillna(0)
                             merged['消耗_2'] = merged['消耗_2'].fillna(0)
                             merged['差异'] = merged['消耗_1'] - merged['消耗_2']
@@ -778,10 +888,12 @@ else:
                                     "数量": [len(missing_in_2), len(extra_in_2), len(diff)]
                                 })
                                 summary.to_excel(writer, sheet_name="对账汇总", index=False)
-                                missing_in_2[['账号ID', '账号名称', '消耗_1']].to_excel(writer, sheet_name="1.漏记", index=False)
-                                extra_in_2[['账号ID', '账号名称', '消耗_2']].to_excel(writer, sheet_name="2.多记", index=False)
+                                # 输出时包含平台和客户
+                                cols_out = ['账号ID', '账号名称', '平台', '客户']
+                                missing_in_2[cols_out + ['消耗_1']].to_excel(writer, sheet_name="1.漏记", index=False)
+                                extra_in_2[cols_out + ['消耗_2']].to_excel(writer, sheet_name="2.多记", index=False)
                                 if not diff.empty:
-                                    diff[['账号ID', '账号名称', '消耗_1', '消耗_2', '差异']].to_excel(writer, sheet_name="3.消耗差异", index=False)
+                                    diff[cols_out + ['消耗_1', '消耗_2', '差异']].to_excel(writer, sheet_name="3.消耗差异", index=False)
 
                             st.success(f"🎉 对账完成：漏记 {len(missing_in_2)}，多记 {len(extra_in_2)}，消耗差异 {len(diff)}")
                             st.download_button(
