@@ -734,31 +734,34 @@ else:
     else:
         tt_cus = pd.DataFrame()
 
-    # 合并客户档案字典
+    # 合并客户档案字典，并收集所有客户名称（统一为字符串）
     customer_dict = {}
     all_client_options = set()
     if not fb_cus.empty:
         for _, row in fb_cus.iterrows():
             cid = row['账号ID']
             if cid:
+                # 客户名称转为字符串并strip
+                client_str = str(row.get('客户', '')).strip()
                 customer_dict[cid] = {
                     '平台': 'FB',
-                    '客户': row.get('客户', ''),
-                    '渠道': row.get('渠道', '')
+                    '客户': client_str,
+                    '渠道': str(row.get('渠道', '')).strip()
                 }
-                if row.get('客户', ''):
-                    all_client_options.add(row['客户'])
+                if client_str:
+                    all_client_options.add(client_str)
     if not tt_cus.empty:
         for _, row in tt_cus.iterrows():
             cid = row['账号ID']
             if cid:
+                client_str = str(row.get('客户', '')).strip()
                 customer_dict[cid] = {
                     '平台': 'TT',
-                    '客户': row.get('客户', ''),
-                    '渠道': row.get('渠道', '')
+                    '客户': client_str,
+                    '渠道': str(row.get('渠道', '')).strip()
                 }
-                if row.get('客户', ''):
-                    all_client_options.add(row['客户'])
+                if client_str:
+                    all_client_options.add(client_str)
 
     # 显示档案加载情况
     total_customers = len(customer_dict)
@@ -835,7 +838,7 @@ else:
             df['账号ID'] = df['账号ID'].astype(str).str.strip()
             df['账号名称'] = df['账号名称'].astype(str).str.strip()
 
-            # 匹配平台和客户
+            # 匹配平台和客户（客户已确保为字符串）
             df['平台'] = df['账号ID'].map(lambda x: customer_dict.get(x, {}).get('平台', '未知') if customer_dict else '未上传档案')
             df['客户'] = df['账号ID'].map(lambda x: customer_dict.get(x, {}).get('客户', '') if customer_dict else '')
             df = df[['账号ID', '账号名称', '消耗', '日期', '平台', '客户']].dropna(subset=['账号ID'])
