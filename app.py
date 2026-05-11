@@ -660,7 +660,7 @@ if work_mode == "财务系统-日记账对账":
                 )
 
 # =================================================================
-# 模式二：消耗账单对账（已修复列名类型问题）
+# 模式二：消耗账单对账（增加清洗明细导出）
 # =================================================================
 else:
     st.header("📊 消耗账单清洗 / 对账")
@@ -690,9 +690,7 @@ else:
             df = pd.read_excel(f, dtype=str)
             if df.empty:
                 continue
-            # 标准化列名 - 先确保列名都是字符串，避免非字符串列名导致的.lower()错误
             df.columns = [str(c) for c in df.columns]
-
             rename_map = {
                 '账号ID': ['账号ID', '广告账户', '账户ID', 'meta_id', 'account_id'],
                 '账号名称': ['账号名称', '账户名称', 'account_name'],
@@ -736,7 +734,7 @@ else:
     else:
         tt_cus = pd.DataFrame()
 
-    # 合并客户档案字典，并收集所有客户名称（统一为字符串）
+    # 合并客户档案字典，并收集所有客户名称
     customer_dict = {}
     all_client_options = set()
     if not fb_cus.empty:
@@ -764,14 +762,12 @@ else:
                 if client_str:
                     all_client_options.add(client_str)
 
-    # 显示档案加载情况
     total_customers = len(customer_dict)
     if total_customers > 0:
         st.success(f"🌸 已加载客户档案，共 {total_customers} 个账号ID")
     else:
         st.info("未上传客户档案，将不标注平台和客户")
 
-    # 客户选择（仅在有档案时显示）
     client_options = sorted(list(all_client_options))
     if client_options:
         selected_clients_cons = st.multiselect(
@@ -802,9 +798,7 @@ else:
             df = pd.read_excel(f, dtype=str)
             if df.empty:
                 continue
-            # 修复：强制列名为字符串，防止整数列名引发.lower()错误
             df.columns = [str(c) for c in df.columns]
-
             rename_map = {
                 '账号名称': ['广告账户名称', '账户名称', '账号名称'],
                 '账号ID': ['账户ID', '广告账户ID', '账号ID'],
@@ -829,7 +823,6 @@ else:
             df['消耗'] = pd.to_numeric(df['消耗'], errors='coerce').fillna(0)
             df['日期'] = pd.to_datetime(df['日期'], errors='coerce', format='mixed').dt.strftime("%Y-%m-%d")
 
-            # 若账号ID列不是纯数字，与账号名称互换
             def swap_if_needed(row):
                 acc_id = str(row['账号ID'])
                 if not acc_id.isdigit():
@@ -842,7 +835,6 @@ else:
             df['账号ID'] = df['账号ID'].astype(str).str.strip()
             df['账号名称'] = df['账号名称'].astype(str).str.strip()
 
-            # 匹配平台和客户（客户已确保为字符串）
             df['平台'] = df['账号ID'].map(lambda x: customer_dict.get(x, {}).get('平台', '未知') if customer_dict else '未上传档案')
             df['客户'] = df['账号ID'].map(lambda x: customer_dict.get(x, {}).get('客户', '') if customer_dict else '')
             df = df[['账号ID', '账号名称', '消耗', '日期', '平台', '客户']].dropna(subset=['账号ID'])
@@ -861,13 +853,14 @@ else:
                 if df1.empty:
                     st.error("清洗后无有效数据，请检查账单格式。")
                 else:
-                    # 根据所选客户过滤（如果选择了客户）
+                    # 根据所选客户过滤
                     if selected_clients_cons:
                         df1 = df1[df1['客户'].isin(selected_clients_cons)]
                         if df1.empty:
                             st.warning("筛选客户后，第一份账单无数据，请重新选择客户或检查账单。")
                             st.stop()
 
+                    # 只有一份账单时，只输出清洗结果
                     if not consumption_files2:
                         st.success(f"✅ 清洗完成，共 {len(df1)} 条有效记录")
                         st.dataframe(df1)
@@ -875,7 +868,7 @@ else:
                         with pd.ExcelWriter(output, engine='openpyxl') as writer:
                             df1.to_excel(writer, sheet_name="清洗结果", index=False)
                         st.download_button(
-                            label="📥 下载清洗结果",
+                            label="📥 下载清洗明细",
                             data=output.getvalue(),
                             file_name=f"消耗账单清洗_{datetime.today().strftime('%Y%m%d')}.xlsx",
                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -885,14 +878,13 @@ else:
                         if df2.empty:
                             st.error("第二份账单清洗后无有效数据。")
                         else:
-                            # 同样按客户过滤第二份
                             if selected_clients_cons:
                                 df2 = df2[df2['客户'].isin(selected_clients_cons)]
                                 if df2.empty:
                                     st.warning("筛选客户后，第二份账单无数据，无法比对。")
                                     st.stop()
 
-                            # 汇总每个账号ID的总消耗，并保留平台和客户
+                            # 汇总
                             agg1 = df1.groupby('账号ID').agg(
                                 账号名称=('账号名称', 'first'),
                                 消耗_1=('消耗', 'sum'),
@@ -907,7 +899,6 @@ else:
                             ).reset_index()
 
                             merged = pd.merge(agg1, agg2, on='账号ID', how='outer', suffixes=('_x', '_y'))
-                            # 合并平台和客户字段
                             merged['平台'] = merged['平台_x'].fillna(merged['平台_y'])
                             merged['客户'] = merged['客户_x'].fillna(merged['客户_y'])
                             merged['账号名称'] = merged['账号名称_x'].fillna(merged['账号名称_y'])
@@ -921,8 +912,9 @@ else:
                             extra_in_2 = merged[merged['消耗_1'] == 0]
                             diff = merged[(merged['消耗_1'] != 0) & (merged['消耗_2'] != 0) & (abs(merged['差异']) > 0.001)]
 
-                            output = io.BytesIO()
-                            with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                            # ---------- 对账报告 ----------
+                            output_report = io.BytesIO()
+                            with pd.ExcelWriter(output_report, engine='openpyxl') as writer:
                                 summary = pd.DataFrame({
                                     "项目": ["1.漏记(账单①有②无)", "2.多记(账单②有①无)", "3.消耗差异"],
                                     "数量": [len(missing_in_2), len(extra_in_2), len(diff)]
@@ -937,7 +929,20 @@ else:
                             st.success(f"🎉 对账完成：漏记 {len(missing_in_2)}，多记 {len(extra_in_2)}，消耗差异 {len(diff)}")
                             st.download_button(
                                 label="📥 下载对账报告",
-                                data=output.getvalue(),
+                                data=output_report.getvalue(),
                                 file_name=f"消耗对账_{datetime.today().strftime('%Y%m%d')}.xlsx",
+                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                            )
+
+                            # ---------- 清洗明细（两个账单） ----------
+                            output_detail = io.BytesIO()
+                            with pd.ExcelWriter(output_detail, engine='openpyxl') as writer:
+                                df1.to_excel(writer, sheet_name="账单①清洗明细", index=False)
+                                df2.to_excel(writer, sheet_name="账单②清洗明细", index=False)
+
+                            st.download_button(
+                                label="📥 下载清洗明细（两份账单）",
+                                data=output_detail.getvalue(),
+                                file_name=f"消耗账单清洗明细_{datetime.today().strftime('%Y%m%d')}.xlsx",
                                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                             )
