@@ -124,6 +124,52 @@ st.markdown("""
         margin-bottom: 3px;
     }
 
+    .hint-card {
+        background: rgba(255, 249, 252, 0.92);
+        border: 1px solid rgba(219, 75, 135, 0.16);
+        border-left: 4px solid var(--pink-400);
+        border-radius: 14px;
+        padding: 12px 14px;
+        margin: 8px 0 14px;
+        color: var(--muted);
+        line-height: 1.7;
+    }
+
+    .hint-card b {
+        color: var(--ink);
+    }
+
+    .field-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 10px;
+    }
+
+    .field-box {
+        background: #fffafd;
+        border: 1px solid rgba(255, 199, 218, 0.72);
+        border-radius: 12px;
+        padding: 11px 12px;
+        min-height: 92px;
+        color: var(--muted);
+        line-height: 1.65;
+    }
+
+    .field-box b {
+        display: block;
+        color: var(--pink-500);
+        margin-bottom: 4px;
+    }
+
+    .field-box code {
+        background: rgba(255, 225, 236, 0.66);
+        color: var(--ink);
+        border-radius: 6px;
+        padding: 1px 5px;
+        font-size: 0.86rem;
+    }
+
     .section-title {
         display: flex;
         align-items: center;
@@ -237,6 +283,7 @@ st.markdown("""
         .app-hero { padding: 22px 20px; border-radius: 18px; }
         .hero-title { font-size: 1.72rem; }
         .guide-grid { grid-template-columns: 1fr; }
+        .field-grid { grid-template-columns: 1fr; }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -266,6 +313,33 @@ def guide_card(title, steps):
             <div class="guide-title">{title}</div>
             <div class="guide-grid">{step_html}</div>
         </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+def hint_card(text):
+    st.markdown(f'<div class="hint-card">{text}</div>', unsafe_allow_html=True)
+
+def field_requirements(title, required, optional=None, aliases=None, note=None):
+    optional = optional or []
+    aliases = aliases or []
+
+    def code_items(items):
+        return " ".join(f"<code>{item}</code>" for item in items)
+
+    blocks = [
+        f'<div class="field-box"><b>必填字段</b>{code_items(required)}</div>',
+        f'<div class="field-box"><b>可选字段</b>{code_items(optional) if optional else "没有也可以继续处理"}</div>',
+        f'<div class="field-box"><b>可识别别名</b>{code_items(aliases) if aliases else "字段名尽量保持清晰即可"}</div>',
+    ]
+    note_html = f'<div class="hint-card"><b>小提示：</b>{note}</div>' if note else ""
+    st.markdown(
+        f"""
+        <details>
+            <summary style="cursor:pointer; color:#db4b87; font-weight:800; margin:6px 0 10px;">查看{title}字段要求</summary>
+            <div class="field-grid">{''.join(blocks)}</div>
+            {note_html}
+        </details>
         """,
         unsafe_allow_html=True,
     )
@@ -301,7 +375,14 @@ if work_mode == "财务系统-日记账对账":
 
     # ========== 客户档案上传区 ==========
     section_title("客户档案", "上传 FB / TT 档案，用于匹配账号、渠道和客户。")
-    st.info("请勿关闭页面或刷新，否则需重新上传客户档案。")
+    hint_card("<b>上传前确认：</b>客户档案只需要上传 Excel 文件；暂不支持从截图识别字段。页面刷新后需要重新上传。")
+    field_requirements(
+        "客户档案",
+        required=["账号ID", "账号名称"],
+        optional=["渠道", "客户"],
+        aliases=["广告账户", "账户ID", "meta_id", "account_id", "账户名称", "account_name", "归属广告主", "广告主"],
+        note="FB 和 TT 客户档案都需要上传；系统会用账号ID + 账号名称共同判断这条系统账属于哪个平台和客户。",
+    )
 
     col_cus1, col_cus2 = st.columns(2)
     with col_cus1:
@@ -404,10 +485,26 @@ if work_mode == "财务系统-日记账对账":
 
     # ========== 系统账单上传区 ==========
     section_title("系统账单", "支持多文件、多工作表 Excel。")
+    hint_card("<b>系统账单会作为核对基准：</b>请上传原始 Excel，不需要手动拆分工作表。系统会自动过滤未完成或 pending 记录。")
+    field_requirements(
+        "系统账单",
+        required=["账号ID", "账号名称", "金额", "类型/工作表名称"],
+        optional=["交易号", "时间", "申请状态"],
+        aliases=["广告账户", "账户ID", "申请ID", "transaction_id", "充值金额", "操作金额", "account_amount", "amount_paid", "申请时间", "交易时间"],
+        note="类型可以是“充值/清零”，也可以是 account_topup / refund from ad account；如果没有类型列，会根据工作表名称里的“充值、减款、清零、refund、topup”判断。",
+    )
     system_files = st.file_uploader("上传系统账单（可多选，支持多工作表 Excel）", type=["xlsx", "xls"], accept_multiple_files=True)
 
     # ========== 日记账上传区 ==========
     section_title("人工日记账", "分别上传 Facebook 和 TikTok 日记账。")
+    hint_card("<b>日记账用于和系统账逐条比较：</b>FB 通常按账号ID + 时间匹配；TT 优先按交易号匹配。")
+    field_requirements(
+        "人工日记账",
+        required=["账号ID", "账号名称", "金额", "类型", "时间"],
+        optional=["交易号", "客户", "申请状态"],
+        aliases=["广告账户", "账户ID", "申请ID", "transaction_id", "充值金额", "操作金额", "申请时间", "交易时间", "更新时间"],
+        note="类型请使用“充值/清零”，也可使用 account_topup / refund from ad account；清零金额会自动转为负数。",
+    )
     col_j1, col_j2 = st.columns(2)
     with col_j1:
         fb_journal_files = st.file_uploader("🔵 上传 FB 日记账（可多选）", type=["xlsx", "xls"], accept_multiple_files=True)
@@ -469,6 +566,8 @@ if work_mode == "财务系统-日记账对账":
         start_date = None
         end_date = None
         st.info("将自动使用系统账和日记账中最早的日期作为开始，最晚的日期作为结束。")
+
+    hint_card("<b>开始前检查：</b>请确认已上传 FB / TT 客户档案、系统账单，以及至少一个日记账文件；筛选条件不选时默认核对全部数据。")
 
     # ========== 系统账单处理函数 ==========
     def parse_system_bill(file):
@@ -928,6 +1027,14 @@ else:
 
     # ----- 客户档案上传（消耗对账专用） -----
     section_title("客户档案", "可选上传，用于自动标注平台、渠道和客户。")
+    hint_card("<b>可选上传：</b>如果不上传客户档案，消耗账单仍可清洗；只是不会自动标注平台和客户。")
+    field_requirements(
+        "客户档案",
+        required=["账号ID", "账号名称"],
+        optional=["渠道", "客户"],
+        aliases=["广告账户", "账户ID", "meta_id", "account_id", "账户名称", "account_name", "归属广告主", "广告主"],
+        note="上传后可以按客户筛选消耗账单，导出的结果也会带上平台和客户信息。",
+    )
     col_c1, col_c2 = st.columns(2)
     with col_c1:
         cons_fb_files = st.file_uploader("🔵 FB 客户档案", type=["xlsx", "xls"], accept_multiple_files=True, key="cons_fb_cus")
@@ -1037,11 +1144,21 @@ else:
 
     # 消耗账单上传区
     section_title("消耗账单", "上传一份账单会生成清洗明细；上传两份账单会额外生成差异报告。")
+    hint_card("<b>处理规则：</b>上传一份账单时输出清洗明细；上传两份账单时会按账号ID汇总消耗并比较差异。")
+    field_requirements(
+        "消耗账单",
+        required=["账号ID", "账号名称", "消耗", "日期"],
+        optional=["平台", "客户"],
+        aliases=["账户ID", "广告账户ID", "广告账户名称", "账户名称", "消耗金额", "花费(美元)", "花费", "消耗时间", "开始日期"],
+        note="如果账号ID和账号名称列放反，系统会尝试自动调换；但建议仍按字段要求整理 Excel，结果会更稳定。",
+    )
     col_a, col_b = st.columns(2)
     with col_a:
         consumption_files1 = st.file_uploader("📤 消耗账单 ①（可多选）", type=["xlsx", "xls"], accept_multiple_files=True, key="cons1")
     with col_b:
         consumption_files2 = st.file_uploader("📤 消耗账单 ②（可选，用于比对）", type=["xlsx", "xls"], accept_multiple_files=True, key="cons2")
+
+    hint_card("<b>开始前检查：</b>至少上传消耗账单 ①；如果上传消耗账单 ②，系统会生成两份账单的差异报告。")
 
     def clean_consumption_bill(files):
         """清洗消耗账单，返回DataFrame包含：账号ID、账号名称、消耗、日期、平台、客户"""
