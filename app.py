@@ -396,19 +396,23 @@ if work_mode == "财务系统-日记账对账":
             '账号ID': ['账号ID', '广告账户', '账户ID', 'meta_id', 'account_id'],
             '账号名称': ['账号名称', '账户名称', 'account_name'],
             '交易号': ['交易号', '申请ID', 'transaction_id'],
-            '金额': ['金额', '充值金额', '操作金额', '操作参数'],
-            '类型': ['操作', '类型', '操作类型', 'type'],
+            '金额': ['金额', '充值金额', '操作金额', '操作参数', '参数', 'amount', 'account_amount', 'amount_paid'],
+            '类型': ['操作', '类型', '操作类型', 'operation_type', 'type'],
             '申请状态': ['申请状态', '代理状态'],
             '时间': ['时间', '申请时间', '交易时间', '更新时间', 'created_at'],
             '渠道': ['归属广告主', '广告主', '渠道'],
             '客户': ['客户', '匹配客户', '分配客户', '客户标签']
         }
         rename = {}
-        col_strs = [str(c) for c in df.columns]
+        def normalize_col_name(value):
+            return str(value).strip().lower().replace(' ', '').replace('\n', '').replace('\r', '')
+
+        col_strs = [normalize_col_name(c) for c in df.columns]
         for std, candidates in mapping.items():
             for c in candidates:
+                cand = normalize_col_name(c)
                 for i, col_str in enumerate(col_strs):
-                    if col_str.lower() == c.lower():
+                    if col_str == cand:
                         rename[df.columns[i]] = std
                         break
                 else:
@@ -430,6 +434,24 @@ if work_mode == "财务系统-日记账对账":
             df['时间'] = df['时间'].str.replace(r'\s+', ' ', regex=True)
             df['时间'] = df['时间'].str.split('.').str[0]
         return df
+
+    def normalize_bill_type(value):
+        text = str(value).strip().lower()
+        if text in {'nan', 'none', '<na>', ''}:
+            return '未知'
+        if any(kw in text for kw in ['account_topup', 'topup', '充值', '加款', '入账']):
+            return '充值'
+        if any(kw in text for kw in ['refund from ad account', 'refund', '清零', '减款', '扣款', '退款']):
+            return '清零'
+        return '未知'
+
+    def clean_amount_series(series):
+        cleaned = (
+            series.astype(str)
+            .str.replace(',', '', regex=False)
+            .str.extract(r'(-?\d+(?:\.\d+)?)', expand=False)
+        )
+        return pd.to_numeric(cleaned, errors='coerce').fillna(0)
 
     def load_multiple_excel(files, platform_label):
         if not files:
@@ -490,7 +512,7 @@ if work_mode == "财务系统-日记账对账":
         "系统账单",
         required=["账号ID", "账号名称", "金额", "类型/工作表名称"],
         optional=["交易号", "时间", "申请状态"],
-        aliases=["广告账户", "账户ID", "申请ID", "transaction_id", "充值金额", "操作金额", "account_amount", "amount_paid", "申请时间", "交易时间"],
+        aliases=["广告账户", "账户ID", "申请ID", "transaction_id", "操作类型", "操作参数", "充值金额", "操作金额", "account_amount", "amount_paid", "申请时间", "交易时间"],
         note="类型可以是“充值/清零”，也可以是 account_topup / refund from ad account；如果没有类型列，会根据工作表名称里的“充值、减款、清零、refund、topup”判断。",
     )
     system_files = st.file_uploader("上传系统账单（可多选，支持多工作表 Excel）", type=["xlsx", "xls"], accept_multiple_files=True)
@@ -502,7 +524,7 @@ if work_mode == "财务系统-日记账对账":
         "人工日记账",
         required=["账号ID", "账号名称", "金额", "类型", "时间"],
         optional=["交易号", "客户", "申请状态"],
-        aliases=["广告账户", "账户ID", "申请ID", "transaction_id", "充值金额", "操作金额", "申请时间", "交易时间", "更新时间"],
+        aliases=["广告账户", "账户ID", "申请ID", "transaction_id", "操作类型", "操作参数", "充值金额", "操作金额", "申请时间", "交易时间", "更新时间"],
         note="类型请使用“充值/清零”，也可使用 account_topup / refund from ad account；清零金额会自动转为负数。",
     )
     col_j1, col_j2 = st.columns(2)
@@ -615,7 +637,7 @@ if work_mode == "财务系统-日记账对账":
                     return 0
 
                 df['金额'] = df.apply(pick_amount, axis=1)
-                df['金额'] = pd.to_numeric(df['金额'], errors='coerce').fillna(0)
+                df['金额'] = clean_amount_series(df['金额'])
 
                 df.loc[df['类型_clean'] == 'account_topup', '类型'] = '充值'
                 df.loc[df['类型_clean'] == 'refund from ad account', '类型'] = '清零'
@@ -637,16 +659,10 @@ if work_mode == "财务系统-日记账对账":
                     df['类型'] = '清零'
 
                 if '类型' in df.columns:
-                    df['类型'] = df['类型'].str.strip().str.lower()
-                    df['类型'] = df['类型'].replace({
-                        '减款': '清零',
-                        'refund': '清零',
-                        'topup': '充值'
-                    })
-                    df['类型'] = df['类型'].apply(lambda x: x if x in ['充值', '清零'] else '未知')
+                    df['类型'] = df['类型'].apply(normalize_bill_type)
 
                 if '金额' in df.columns:
-                    df['金额'] = pd.to_numeric(df['金额'], errors='coerce').fillna(0)
+                    df['金额'] = clean_amount_series(df['金额'])
                 else:
                     df['金额'] = 0.0
 
@@ -656,7 +672,7 @@ if work_mode == "财务系统-日记账对账":
 
             if '金额' not in df.columns:
                 df['金额'] = pd.Series(0.0, index=df.index)
-            df['金额'] = pd.to_numeric(df['金额'], errors='coerce').fillna(0)
+            df['金额'] = clean_amount_series(df['金额'])
 
             frames.append(df)
 
