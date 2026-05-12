@@ -398,7 +398,7 @@ if work_mode == "财务系统-日记账对账":
             '交易号': ['交易号', '申请ID', 'transaction_id'],
             '金额': ['金额', '充值金额', '操作金额', '操作参数', '参数', 'amount', 'account_amount', 'amount_paid'],
             '类型': ['操作', '类型', '操作类型', 'operation_type', 'type'],
-            '申请状态': ['申请状态', '代理状态'],
+            '申请状态': ['申请状态', '代理状态', '处理状态'],
             '时间': ['时间', '申请时间', '交易时间', '更新时间', 'created_at'],
             '渠道': ['归属广告主', '广告主', '渠道'],
             '客户': ['客户', '匹配客户', '分配客户', '客户标签']
@@ -452,6 +452,9 @@ if work_mode == "财务系统-日记账对账":
             .str.extract(r'(-?\d+(?:\.\d+)?)', expand=False)
         )
         return pd.to_numeric(cleaned, errors='coerce').fillna(0)
+
+    def normalize_match_text(value):
+        return str(value).strip().lower().replace(' ', '').replace('\n', '').replace('\r', '')
 
     def load_multiple_excel(files, platform_label):
         if not files:
@@ -513,7 +516,7 @@ if work_mode == "财务系统-日记账对账":
         required=["账号ID", "账号名称", "金额", "类型/工作表名称"],
         optional=["交易号", "时间", "申请状态"],
         aliases=["广告账户", "账户ID", "申请ID", "transaction_id", "操作类型", "操作参数", "充值金额", "操作金额", "account_amount", "amount_paid", "申请时间", "交易时间"],
-        note="类型可以是“充值/清零”，也可以是 account_topup / refund from ad account；如果没有类型列，会根据工作表名称里的“充值、减款、清零、refund、topup”判断。",
+        note="只核对“充值/清零”两类操作；绑定、开户、Creation Fee 等其他类型会自动忽略，不纳入报告。",
     )
     system_files = st.file_uploader("上传系统账单（可多选，支持多工作表 Excel）", type=["xlsx", "xls"], accept_multiple_files=True)
 
@@ -652,14 +655,20 @@ if work_mode == "财务系统-日记账对账":
                     mask = (df[pending_cols] != 0).any(axis=1)
                     df = df[~mask]
 
-                sheet_low = sheet.lower()
-                if any(kw in sheet_low for kw in ['充值', 'topup']):
-                    df['类型'] = '充值'
-                elif any(kw in sheet_low for kw in ['减款', '清零', 'refund']):
-                    df['类型'] = '清零'
-
                 if '类型' in df.columns:
                     df['类型'] = df['类型'].apply(normalize_bill_type)
+                else:
+                    sheet_low = sheet.lower()
+                    if any(kw in sheet_low for kw in ['充值', 'topup']):
+                        df['类型'] = '充值'
+                    elif any(kw in sheet_low for kw in ['减款', '清零', 'refund']):
+                        df['类型'] = '清零'
+                    else:
+                        df['类型'] = '未知'
+
+                df = df[df['类型'].isin(['充值', '清零'])].copy()
+                if df.empty:
+                    continue
 
                 if '金额' in df.columns:
                     df['金额'] = clean_amount_series(df['金额'])
@@ -667,7 +676,7 @@ if work_mode == "财务系统-日记账对账":
                     df['金额'] = 0.0
 
             if '申请状态' in df.columns:
-                valid_status = df['申请状态'].str.strip().str.lower().isin(['成功', '已完成'])
+                valid_status = df['申请状态'].str.strip().str.lower().isin(['成功', '已完成', '已处理'])
                 df = df[valid_status]
 
             if '金额' not in df.columns:
@@ -731,8 +740,8 @@ if work_mode == "财务系统-日记账对账":
         fb_info = fb_dict.get(id_str)
         tt_info = tt_dict.get(id_str)
 
-        fb_match = fb_info is not None and fb_info.get('name', '').lower() == name_str.lower()
-        tt_match = tt_info is not None and tt_info.get('name', '').lower() == name_str.lower()
+        fb_match = fb_info is not None and normalize_match_text(fb_info.get('name', '')) == normalize_match_text(name_str)
+        tt_match = tt_info is not None and normalize_match_text(tt_info.get('name', '')) == normalize_match_text(name_str)
 
         if fb_match and tt_match:
             return "FB", fb_info.get('channel', ''), fb_info.get('client', ''), f"⚠️ 账号ID {id_str} 在FB和TT档案中都完全匹配，暂归为FB"
@@ -740,8 +749,14 @@ if work_mode == "财务系统-日记账对账":
             return "FB", fb_info.get('channel', ''), fb_info.get('client', ''), ""
         elif tt_match:
             return "TT", tt_info.get('channel', ''), tt_info.get('client', ''), ""
+        elif fb_info is not None and tt_info is None:
+            return "FB", fb_info.get('channel', ''), fb_info.get('client', ''), f"⚠️ 账号ID {id_str} 已在FB档案中找到，但账号名称不完全一致，已按账号ID匹配"
+        elif tt_info is not None and fb_info is None:
+            return "TT", tt_info.get('channel', ''), tt_info.get('client', ''), f"⚠️ 账号ID {id_str} 已在TT档案中找到，但账号名称不完全一致，已按账号ID匹配"
+        elif fb_info is not None and tt_info is not None:
+            return "FB", fb_info.get('channel', ''), fb_info.get('client', ''), f"⚠️ 账号ID {id_str} 同时存在于FB和TT档案，账号名称不完全一致，暂按FB匹配"
         else:
-            return None, '', '', "账号ID或名称与客户档案不匹配，请核实信息"
+            return None, '', '', "账号ID未在客户档案中找到，请核实信息"
 
     # ========== 开始对账 ==========
     if st.button("✨ 开始自动对账", type="primary"):
