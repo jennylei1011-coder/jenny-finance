@@ -400,7 +400,7 @@ if work_mode == "财务系统-日记账对账":
             '金额': ['金额', '充值金额', '操作金额', '操作参数', '参数', 'amount', 'account_amount', 'amount_paid'],
             '类型': ['操作', '类型', '操作类型', 'operation_type', 'type'],
             '申请状态': ['申请状态', '代理状态', '处理状态'],
-            '时间': ['时间', '申请时间', '交易时间', '更新时间', 'created_at'],
+            '时间': ['更新时间', '时间', '交易时间', '申请时间', '提交时间', 'created_at'],
             '渠道': ['归属广告主', '广告主', '渠道'],
             '客户': ['客户', '匹配客户', '分配客户', '客户标签']
         }
@@ -425,15 +425,43 @@ if work_mode == "财务系统-日记账对账":
         for col in cols:
             if col in df.columns:
                 df[col] = df[col].astype(str).str.strip()
-                df[col] = df[col].str.replace(r'\.0$', '', regex=True)
+                if col == '账号ID':
+                    df[col] = df[col].apply(normalize_id_text)
+                else:
+                    df[col] = df[col].str.replace(r'\.0$', '', regex=True)
                 df[col] = df[col].replace({'nan': '', 'None': '', '<NA>': ''})
         return df
+
+    def normalize_id_text(value):
+        text = str(value).strip()
+        if text.lower() in {'', 'nan', 'none', '<na>'}:
+            return ''
+        text = text.replace(',', '').replace(' ', '')
+        try:
+            if any(mark in text.lower() for mark in ['e+', 'e-']):
+                return format(Decimal(text), 'f').split('.')[0]
+            if text.endswith('.0'):
+                return text[:-2]
+        except (InvalidOperation, ValueError):
+            pass
+        return text
+
+    def parse_mixed_datetime_series(series):
+        raw = series.astype(str).str.strip().str.replace(r'\s+', ' ', regex=True)
+        numeric = pd.to_numeric(raw, errors='coerce')
+        text_values = raw.mask(numeric.notna(), '')
+        parsed = pd.to_datetime(text_values, errors='coerce', format='mixed')
+        excel_mask = numeric.between(20000, 80000) & parsed.isna()
+        if excel_mask.any():
+            parsed.loc[excel_mask] = pd.to_datetime(numeric.loc[excel_mask], unit='D', origin='1899-12-30', errors='coerce')
+        return parsed
 
     def robust_clean_time(df):
         if '时间' in df.columns:
             df['时间'] = df['时间'].astype(str).str.strip()
             df['时间'] = df['时间'].str.replace(r'\s+', ' ', regex=True)
-            df['时间'] = df['时间'].str.split('.').str[0]
+            numeric_time = pd.to_numeric(df['时间'], errors='coerce')
+            df['时间'] = df['时间'].where(numeric_time.notna(), df['时间'].str.split('.').str[0])
         return df
 
     def normalize_bill_type(value):
@@ -516,7 +544,7 @@ if work_mode == "财务系统-日记账对账":
         "系统账单",
         required=["账号ID", "账号名称", "金额", "类型/工作表名称"],
         optional=["交易号", "时间", "申请状态"],
-        aliases=["广告账户", "账户ID", "申请ID", "transaction_id", "操作类型", "操作参数", "充值金额", "操作金额", "account_amount", "amount_paid", "申请时间", "交易时间"],
+        aliases=["广告账户", "账户ID", "申请ID", "transaction_id", "操作类型", "操作参数", "充值金额", "操作金额", "account_amount", "amount_paid", "更新时间", "提交时间", "申请时间", "交易时间"],
         note="只核对“充值/清零”两类操作；绑定、开户、Creation Fee 等其他类型会自动忽略，不纳入报告。",
     )
     system_files = st.file_uploader("上传系统账单（可多选，支持多工作表 Excel）", type=["xlsx", "xls"], accept_multiple_files=True)
@@ -854,7 +882,7 @@ if work_mode == "财务系统-日记账对账":
                     time_series = []
                     for df in [sys_df, journal]:
                         if not df.empty and '时间' in df.columns:
-                            ser = pd.to_datetime(df['时间'], errors='coerce').dropna()
+                            ser = parse_mixed_datetime_series(df['时间']).dropna()
                             if not ser.empty:
                                 time_series.append(ser)
                     if time_series:
@@ -867,7 +895,7 @@ if work_mode == "财务系统-日记账对账":
 
                 for idx, df in enumerate([sys_df, journal]):
                     if not df.empty and '时间' in df.columns:
-                        df['时间_dt'] = pd.to_datetime(df['时间'], errors='coerce')
+                        df['时间_dt'] = parse_mixed_datetime_series(df['时间'])
                         mask = (df['时间_dt'].notna()) & (df['时间_dt'].dt.date >= start_date) & (df['时间_dt'].dt.date <= end_date)
                         df = df[mask].copy()
                         df.drop(columns=['时间_dt'], inplace=True)
@@ -918,10 +946,10 @@ if work_mode == "财务系统-日记账对账":
                     st.warning("在当前平台范围内，系统账单无数据，无法对账")
                     st.stop()
 
-                for df in [sys_df, journal]:
-                    if not df.empty:
-                        if '时间' in df.columns:
-                            df['时间'] = pd.to_datetime(df['时间'], errors='coerce', format='mixed').dt.strftime("%Y-%m-%d %H:%M").fillna("")
+            for df in [sys_df, journal]:
+                if not df.empty:
+                    if '时间' in df.columns:
+                        df['时间'] = parse_mixed_datetime_series(df['时间']).dt.strftime("%Y-%m-%d %H:%M").fillna("")
                         if '金额' in df.columns:
                             df['金额'] = pd.to_numeric(df['金额'], errors='coerce').fillna(0).round(2)
                         else:
