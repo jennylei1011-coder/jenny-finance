@@ -382,7 +382,7 @@ if work_mode == "财务系统-日记账对账":
         required=["账号ID", "账号名称"],
         optional=["渠道", "客户"],
         aliases=["广告账户", "账户ID", "meta_id", "account_id", "账户名称", "account_name", "归属广告主", "广告主"],
-        note="FB 和 TT 客户档案都需要上传；系统会用账号ID + 账号名称共同判断这条系统账属于哪个平台和客户。",
+        note="FB 和 TT 客户档案都需要上传；如果同一个账号ID被分配给多个客户，系统会直接报错并提示核实，不会自动选择其中一个客户。",
     )
 
     col_cus1, col_cus2 = st.columns(2)
@@ -809,6 +809,50 @@ if work_mode == "财务系统-日记账对账":
             st.error("❌ 请至少上传一个日记账文件！")
         else:
             with st.spinner('🍬 JENNY正在核对，请稍候...'):
+                def find_duplicate_customer_assignments(*customer_frames):
+                    records = {}
+                    for platform_label, customer_df in customer_frames:
+                        if customer_df is None or customer_df.empty:
+                            continue
+                        for _, row in customer_df.iterrows():
+                            cid = normalize_id_text(row.get('账号ID', ''))
+                            if not cid:
+                                continue
+                            cname = str(row.get('账号名称', '')).strip()
+                            channel = str(row.get('渠道', '')).strip()
+                            client = str(row.get('客户', '')).strip()
+                            if not client:
+                                continue
+                            records.setdefault(cid, []).append({
+                                '平台': platform_label,
+                                '账号ID': cid,
+                                '账号名称': cname,
+                                '渠道': channel,
+                                '客户': client,
+                            })
+
+                    duplicate_rows = []
+                    for cid, rows in records.items():
+                        clients = sorted({r['客户'] for r in rows if r['客户']})
+                        if len(clients) <= 1:
+                            continue
+                        for r in rows:
+                            duplicate_rows.append({
+                                **r,
+                                '重复客户': ' / '.join(clients),
+                                '提示': '请核实，此账号客户分配重复'
+                            })
+                    return pd.DataFrame(duplicate_rows)
+
+                duplicate_assignments = find_duplicate_customer_assignments(
+                    ('FB', fb_customers),
+                    ('TT', tt_customers)
+                )
+                if not duplicate_assignments.empty:
+                    st.error("客户档案中发现同一账号分配给多个客户。为避免对账结果出错，请先修正客户档案后再开始对账。")
+                    st.dataframe(duplicate_assignments)
+                    st.stop()
+
                 fb_dict = {}
                 fb_name_dict = {}
                 for _, row in fb_customers.iterrows():
@@ -817,10 +861,12 @@ if work_mode == "财务系统-日记账对账":
                     channel = str(row.get('渠道', '')).strip()
                     client = str(row.get('客户', '')).strip()
                     if cid:
-                        fb_dict[cid] = {'id': cid, 'name': cname, 'channel': channel, 'client': client, 'plat': 'FB'}
+                        new_info = {'id': cid, 'name': cname, 'channel': channel, 'client': client, 'plat': 'FB'}
+                        if cid not in fb_dict:
+                            fb_dict[cid] = new_info
                         name_key = normalize_match_text(cname)
-                        if name_key:
-                            fb_name_dict[name_key] = fb_dict[cid]
+                        if name_key and name_key not in fb_name_dict:
+                            fb_name_dict[name_key] = new_info
                 tt_dict = {}
                 tt_name_dict = {}
                 for _, row in tt_customers.iterrows():
@@ -829,10 +875,12 @@ if work_mode == "财务系统-日记账对账":
                     channel = str(row.get('渠道', '')).strip()
                     client = str(row.get('客户', '')).strip()
                     if cid:
-                        tt_dict[cid] = {'id': cid, 'name': cname, 'channel': channel, 'client': client, 'plat': 'TT'}
+                        new_info = {'id': cid, 'name': cname, 'channel': channel, 'client': client, 'plat': 'TT'}
+                        if cid not in tt_dict:
+                            tt_dict[cid] = new_info
                         name_key = normalize_match_text(cname)
-                        if name_key:
-                            tt_name_dict[name_key] = tt_dict[cid]
+                        if name_key and name_key not in tt_name_dict:
+                            tt_name_dict[name_key] = new_info
 
                 sys_df = load_system_bills(system_files)
                 if sys_df.empty:
