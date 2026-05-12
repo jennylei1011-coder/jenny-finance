@@ -382,7 +382,7 @@ if work_mode == "财务系统-日记账对账":
         required=["账号ID", "账号名称"],
         optional=["渠道", "客户"],
         aliases=["广告账户", "账户ID", "meta_id", "account_id", "账户名称", "account_name", "归属广告主", "广告主"],
-        note="FB 和 TT 客户档案都需要上传；如果同一个账号ID被分配给多个客户，系统会直接报错并提示核实，不会自动选择其中一个客户。",
+        note="FB 和 TT 客户档案都需要上传；如果同一个账号ID被分配给多个客户，报告会在“客户分配重复”中列出并提示核实。",
     )
 
     col_cus1, col_cus2 = st.columns(2)
@@ -857,7 +857,6 @@ if work_mode == "财务系统-日记账对账":
                         for name in duplicate_assignments['账号名称'].astype(str)
                         if normalize_match_text(name)
                     }
-                    st.warning("客户档案中发现同一账号分配给多个客户；相关流水将单独写入报告的“7.客户分配重复”，不参与正常漏记/多记判断。")
 
                 fb_dict = {}
                 fb_name_dict = {}
@@ -915,18 +914,48 @@ if work_mode == "财务系统-日记账对账":
                         .apply(lambda s: ' / '.join(sorted(set(str(v).strip() for v in s if str(v).strip()))))
                         .to_dict()
                     )
+                    report_duplicate_assignments = duplicate_assignments.copy()
+                    if selected_clients:
+                        selected_client_set = {str(c).strip() for c in selected_clients if str(c).strip()}
+
+                        def duplicate_in_selected_clients(row):
+                            own_client = str(row.get('客户', '')).strip()
+                            all_clients = {
+                                c.strip()
+                                for c in str(row.get('重复客户', '')).split('/')
+                                if c.strip()
+                            }
+                            return own_client in selected_client_set or bool(all_clients & selected_client_set)
+
+                        report_duplicate_assignments = duplicate_assignments[
+                            duplicate_assignments.apply(duplicate_in_selected_clients, axis=1)
+                        ].copy()
+
+                    report_duplicate_ids = set(report_duplicate_assignments['账号ID'].astype(str).str.strip())
+                    report_duplicate_name_keys = {
+                        normalize_match_text(name)
+                        for name in report_duplicate_assignments['账号名称'].astype(str)
+                        if normalize_match_text(name)
+                    }
                     duplicate_records = []
 
-                    def is_duplicate_customer_row(row):
+                    def is_duplicate_customer_row(row, ids=None, name_keys=None):
+                        ids = duplicate_ids if ids is None else ids
+                        name_keys = duplicate_name_keys if name_keys is None else name_keys
                         raw_id = normalize_id_text(row.get('账号ID', ''))
                         raw_original_id = normalize_id_text(row.get('_原始账号ID', ''))
                         name_key = normalize_match_text(row.get('账号名称', ''))
-                        return raw_id in duplicate_ids or raw_original_id in duplicate_ids or name_key in duplicate_name_keys
+                        return raw_id in ids or raw_original_id in ids or name_key in name_keys
 
                     def collect_duplicate_customer_rows(df, source_name):
                         if df.empty:
                             return
-                        mask = df.apply(is_duplicate_customer_row, axis=1)
+                        if not report_duplicate_ids and not report_duplicate_name_keys:
+                            return
+                        mask = df.apply(
+                            lambda row: is_duplicate_customer_row(row, report_duplicate_ids, report_duplicate_name_keys),
+                            axis=1
+                        )
                         for _, row in df[mask].iterrows():
                             rid = normalize_id_text(row.get('账号ID', '')) or normalize_id_text(row.get('_原始账号ID', ''))
                             duplicate_records.append({
@@ -945,7 +974,7 @@ if work_mode == "财务系统-日记账对账":
                     collect_duplicate_customer_rows(sys_df, '系统账')
                     collect_duplicate_customer_rows(journal, '日记账')
 
-                    duplicate_assignment_rows = duplicate_assignments.assign(
+                    duplicate_assignment_rows = report_duplicate_assignments.assign(
                         来源='客户档案',
                         异常类型='客户分配重复',
                         类型='',
