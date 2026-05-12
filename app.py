@@ -949,7 +949,9 @@ if work_mode == "财务系统-日记账对账":
             for df in [sys_df, journal]:
                 if not df.empty:
                     if '时间' in df.columns:
-                        df['时间'] = parse_mixed_datetime_series(df['时间']).dt.strftime("%Y-%m-%d %H:%M").fillna("")
+                        parsed_time = parse_mixed_datetime_series(df['时间'])
+                        df['_匹配时间'] = parsed_time.dt.floor('min').dt.strftime("%Y-%m-%d %H:%M").fillna("")
+                        df['时间'] = df['_匹配时间']
                         if '金额' in df.columns:
                             df['金额'] = pd.to_numeric(df['金额'], errors='coerce').fillna(0).round(2)
                         else:
@@ -957,8 +959,8 @@ if work_mode == "财务系统-日记账对账":
 
                 def gen_key_sys(row):
                     plat = row['所属平台']
-                    acc_id = str(row['账号ID']).strip()
-                    time_val = str(row['时间']).strip()
+                    acc_id = normalize_id_text(row['账号ID'])
+                    time_val = str(row.get('_匹配时间', row.get('时间', ''))).strip()
                     tx_id = str(row.get('交易号', '')).strip()
                     if plat == 'FB':
                         if acc_id and time_val:
@@ -975,8 +977,8 @@ if work_mode == "财务系统-日记账对账":
 
                 def gen_key_jnl(row):
                     src = row['来源平台']
-                    acc_id = str(row['账号ID']).strip()
-                    time_val = str(row['时间']).strip()
+                    acc_id = normalize_id_text(row['账号ID'])
+                    time_val = str(row.get('_匹配时间', row.get('时间', ''))).strip()
                     tx_id = str(row.get('交易号', '')).strip()
                     if src == 'FB日记账':
                         if acc_id and time_val:
