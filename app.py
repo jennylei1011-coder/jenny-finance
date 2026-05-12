@@ -762,33 +762,45 @@ if work_mode == "财务系统-日记账对账":
             frames.append(df)
         return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
 
-    def match_platform_and_channel_and_client(id_val, name_val, fb_dict, tt_dict):
+    def match_platform_and_channel_and_client(id_val, name_val, fb_dict, tt_dict, fb_name_dict, tt_name_dict):
         id_str = str(id_val).strip()
         name_str = str(name_val).strip()
+        name_key = normalize_match_text(name_str)
 
         fb_info = fb_dict.get(id_str)
         tt_info = tt_dict.get(id_str)
+        fb_name_info = fb_name_dict.get(name_key) if name_key else None
+        tt_name_info = tt_name_dict.get(name_key) if name_key else None
 
         fb_match = fb_info is not None and normalize_match_text(fb_info.get('name', '')) == normalize_match_text(name_str)
         tt_match = tt_info is not None and normalize_match_text(tt_info.get('name', '')) == normalize_match_text(name_str)
 
         if fb_match and tt_match:
-            return "FB", fb_info.get('channel', ''), fb_info.get('client', ''), f"⚠️ 账号ID {id_str} 在FB和TT档案中都完全匹配，暂归为FB"
+            return "FB", fb_info.get('channel', ''), fb_info.get('client', ''), fb_info.get('id', id_str), f"⚠️ 账号ID {id_str} 在FB和TT档案中都完全匹配，暂归为FB"
         elif fb_match:
-            return "FB", fb_info.get('channel', ''), fb_info.get('client', ''), ""
+            return "FB", fb_info.get('channel', ''), fb_info.get('client', ''), fb_info.get('id', id_str), ""
         elif tt_match:
-            return "TT", tt_info.get('channel', ''), tt_info.get('client', ''), ""
+            return "TT", tt_info.get('channel', ''), tt_info.get('client', ''), tt_info.get('id', id_str), ""
         elif fb_info is not None and tt_info is None:
-            return "FB", fb_info.get('channel', ''), fb_info.get('client', ''), f"⚠️ 账号ID {id_str} 已在FB档案中找到，但账号名称不完全一致，已按账号ID匹配"
+            return "FB", fb_info.get('channel', ''), fb_info.get('client', ''), fb_info.get('id', id_str), f"⚠️ 账号ID {id_str} 已在FB档案中找到，但账号名称不完全一致，已按账号ID匹配"
         elif tt_info is not None and fb_info is None:
-            return "TT", tt_info.get('channel', ''), tt_info.get('client', ''), f"⚠️ 账号ID {id_str} 已在TT档案中找到，但账号名称不完全一致，已按账号ID匹配"
+            return "TT", tt_info.get('channel', ''), tt_info.get('client', ''), tt_info.get('id', id_str), f"⚠️ 账号ID {id_str} 已在TT档案中找到，但账号名称不完全一致，已按账号ID匹配"
         elif fb_info is not None and tt_info is not None:
-            return "FB", fb_info.get('channel', ''), fb_info.get('client', ''), f"⚠️ 账号ID {id_str} 同时存在于FB和TT档案，账号名称不完全一致，暂按FB匹配"
+            return "FB", fb_info.get('channel', ''), fb_info.get('client', ''), fb_info.get('id', id_str), f"⚠️ 账号ID {id_str} 同时存在于FB和TT档案，账号名称不完全一致，暂按FB匹配"
+        elif fb_name_info is not None and tt_name_info is None:
+            return "FB", fb_name_info.get('channel', ''), fb_name_info.get('client', ''), fb_name_info.get('id', id_str), f"⚠️ 账号ID {id_str} 未精确匹配，已按账号名称匹配FB档案标准ID"
+        elif tt_name_info is not None and fb_name_info is None:
+            return "TT", tt_name_info.get('channel', ''), tt_name_info.get('client', ''), tt_name_info.get('id', id_str), f"⚠️ 账号ID {id_str} 未精确匹配，已按账号名称匹配TT档案标准ID"
+        elif fb_name_info is not None and tt_name_info is not None:
+            return "FB", fb_name_info.get('channel', ''), fb_name_info.get('client', ''), fb_name_info.get('id', id_str), f"⚠️ 账号名称同时存在于FB和TT档案，暂按FB匹配"
         else:
-            return None, '', '', "账号ID未在客户档案中找到，请核实信息"
+            return None, '', '', id_str, "账号ID和账号名称均未在客户档案中找到，请核实信息"
 
     # ========== 开始对账 ==========
     if st.button("✨ 开始自动对账", type="primary"):
+        for key in ['mode1_report_data', 'mode1_report_name', 'mode1_success']:
+            if key in st.session_state:
+                del st.session_state[key]
         if not system_files:
             st.error("❌ 请上传系统账单！")
         elif fb_customers is None or tt_customers is None:
@@ -798,49 +810,81 @@ if work_mode == "财务系统-日记账对账":
         else:
             with st.spinner('🍬 JENNY正在核对，请稍候...'):
                 fb_dict = {}
+                fb_name_dict = {}
                 for _, row in fb_customers.iterrows():
-                    cid = str(row['账号ID']).strip()
+                    cid = normalize_id_text(row['账号ID'])
                     cname = str(row['账号名称']).strip()
                     channel = str(row.get('渠道', '')).strip()
                     client = str(row.get('客户', '')).strip()
                     if cid:
-                        fb_dict[cid] = {'name': cname, 'channel': channel, 'client': client, 'plat': 'FB'}
+                        fb_dict[cid] = {'id': cid, 'name': cname, 'channel': channel, 'client': client, 'plat': 'FB'}
+                        name_key = normalize_match_text(cname)
+                        if name_key:
+                            fb_name_dict[name_key] = fb_dict[cid]
                 tt_dict = {}
+                tt_name_dict = {}
                 for _, row in tt_customers.iterrows():
-                    cid = str(row['账号ID']).strip()
+                    cid = normalize_id_text(row['账号ID'])
                     cname = str(row['账号名称']).strip()
                     channel = str(row.get('渠道', '')).strip()
                     client = str(row.get('客户', '')).strip()
                     if cid:
-                        tt_dict[cid] = {'name': cname, 'channel': channel, 'client': client, 'plat': 'TT'}
+                        tt_dict[cid] = {'id': cid, 'name': cname, 'channel': channel, 'client': client, 'plat': 'TT'}
+                        name_key = normalize_match_text(cname)
+                        if name_key:
+                            tt_name_dict[name_key] = tt_dict[cid]
 
                 sys_df = load_system_bills(system_files)
                 if sys_df.empty:
                     st.error("系统账单经处理后无有效数据")
                     st.stop()
                 sys_df['来源平台'] = '系统账单'
+                sys_df['_原始账号ID'] = sys_df.get('账号ID', '').astype(str)
+                sys_df['_原始时间'] = sys_df.get('时间', '').astype(str)
 
                 fb_jnl = load_journal(fb_journal_files, "FB日记账")
                 tt_jnl = load_journal(tt_journal_files, "TT日记账")
                 journal = pd.concat([fb_jnl, tt_jnl], ignore_index=True)
+                if not journal.empty:
+                    journal['_原始账号ID'] = journal.get('账号ID', '').astype(str)
+                    journal['_原始时间'] = journal.get('时间', '').astype(str)
+
+                def canonical_journal_id(row):
+                    raw_id = normalize_id_text(row.get('账号ID', ''))
+                    name_key = normalize_match_text(row.get('账号名称', ''))
+                    if raw_id in fb_dict:
+                        return fb_dict[raw_id].get('id', raw_id)
+                    if raw_id in tt_dict:
+                        return tt_dict[raw_id].get('id', raw_id)
+                    if name_key in fb_name_dict:
+                        return fb_name_dict[name_key].get('id', raw_id)
+                    if name_key in tt_name_dict:
+                        return tt_name_dict[name_key].get('id', raw_id)
+                    return raw_id
+
+                if not journal.empty:
+                    journal['账号ID'] = journal.apply(canonical_journal_id, axis=1)
 
                 matched_platforms = []
                 match_channels = []
                 match_clients = []
+                match_ids = []
                 errors = []
                 for idx, row in sys_df.iterrows():
-                    plat, ch, cl, err = match_platform_and_channel_and_client(
-                        row.get('账号ID', ''), row.get('账号名称', ''), fb_dict, tt_dict
+                    plat, ch, cl, canonical_id, err = match_platform_and_channel_and_client(
+                        row.get('账号ID', ''), row.get('账号名称', ''), fb_dict, tt_dict, fb_name_dict, tt_name_dict
                     )
                     matched_platforms.append(plat)
                     match_channels.append(ch)
                     match_clients.append(cl)
+                    match_ids.append(canonical_id)
                     if plat is None:
                         errors.append((row.get('账号ID', ''), row.get('账号名称', ''), err))
 
                 sys_df['所属平台'] = matched_platforms
                 sys_df['渠道'] = match_channels
                 sys_df['客户'] = match_clients
+                sys_df['账号ID'] = match_ids
 
                 if errors:
                     st.error(f"🚨 系统账单中发现 {len(errors)} 条记录与客户档案不匹配，已剔除：")
@@ -1029,6 +1073,20 @@ if work_mode == "财务系统-日记账对账":
                 missing_in_s = journal
                 amt_diff = typ_diff = pd.DataFrame()
 
+            debug_frames = []
+            sys_debug_cols = [c for c in ['_原始账号ID', '账号ID', '账号名称', '_原始时间', '时间', '_匹配时间', '类型', '金额', '所属平台', '渠道', '客户', '主键'] if c in sys_df.columns]
+            if sys_debug_cols:
+                sys_debug = sys_df[sys_debug_cols].copy()
+                sys_debug.insert(0, '来源', '系统账')
+                debug_frames.append(sys_debug)
+            if not journal.empty:
+                jnl_debug_cols = [c for c in ['_原始账号ID', '账号ID', '账号名称', '_原始时间', '时间', '_匹配时间', '类型', '金额', '来源平台', '渠道', '客户', '主键'] if c in journal.columns]
+                if jnl_debug_cols:
+                    jnl_debug = journal[jnl_debug_cols].copy()
+                    jnl_debug.insert(0, '来源', '日记账')
+                    debug_frames.append(jnl_debug)
+            debug_detail = pd.concat(debug_frames, ignore_index=True) if debug_frames else pd.DataFrame()
+
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine='openpyxl') as writer:
                 summary = pd.DataFrame({
@@ -1044,6 +1102,7 @@ if work_mode == "财务系统-日记账对账":
                     typ_diff[['主键','账号ID_系统','时间_系统','类型_系统','类型_日记账']].to_excel(writer, sheet_name="4.类型不符", index=False)
                 sys_dup.to_excel(writer, sheet_name="5.系统重复", index=False)
                 jnl_dup.to_excel(writer, sheet_name="6.日记账重复", index=False)
+                debug_detail.to_excel(writer, sheet_name="调试明细", index=False)
 
             today_str = datetime.today().strftime("%Y%m%d")
             client_str = "_".join(selected_clients) if selected_clients else "全部客户"
