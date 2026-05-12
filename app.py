@@ -1127,7 +1127,10 @@ else:
         tt_cus = pd.DataFrame()
 
     def normalize_cons_text(value):
-        return str(value).strip().lower().replace(' ', '').replace('\n', '').replace('\r', '')
+        text = str(value).strip()
+        if text.lower() in {'', 'nan', 'none', '<na>', 'nat'}:
+            return ''
+        return text.lower().replace(' ', '').replace('\n', '').replace('\r', '')
 
     def normalize_cons_account_id(value):
         text = str(value).strip()
@@ -1152,6 +1155,34 @@ else:
         match = pd.Series([text]).str.extract(r'(-?\d+(?:\.\d+)?)', expand=False).iloc[0]
         return pd.to_numeric(match, errors='coerce') if pd.notna(match) else 0
 
+    def is_summary_or_empty_consumption_row(row):
+        joined = " ".join(str(v) for v in row.values if str(v).strip().lower() not in {'', 'nan', 'none', '<na>'})
+        has_summary_word = any(word in joined for word in ['总消耗', '合计', '总计', 'subtotal', 'total'])
+        has_account = looks_like_account_id(row.get('账号ID', '')) or normalize_cons_text(row.get('账号名称', '')) != ''
+        return has_summary_word or not has_account
+
+    def safe_file_part(value):
+        text = str(value).strip()
+        for ch in ['\\', '/', ':', '*', '?', '"', '<', '>', '|']:
+            text = text.replace(ch, '_')
+        return text or '客户'
+
+    def build_consumption_extract_filename(df):
+        clients = [
+            str(v).strip()
+            for v in df['客户'].dropna().unique()
+            if str(v).strip() and str(v).strip().lower() not in {'nan', 'none', '<na>'}
+        ]
+        if len(clients) == 1:
+            prefix = safe_file_part(clients[0])
+        elif len(clients) > 1:
+            prefix = safe_file_part("_".join(clients[:3]))
+            if len(clients) > 3:
+                prefix = f"{prefix}_等{len(clients)}个客户"
+        else:
+            prefix = "未匹配客户"
+        return f"{prefix}消耗.xlsx"
+
     def clean_cons_date_series(series):
         raw = series.astype(str).str.strip()
         numeric = pd.to_numeric(raw, errors='coerce')
@@ -1166,7 +1197,7 @@ else:
             '账号名称': ['广告账户名称', '账户名称', '账号名称', 'account_name', 'ad account name'],
             '账号ID': ['账户ID', '广告账户ID', '广告账户', '账号ID', 'account_id', 'ad account id'],
             '消耗': ['消耗金额', '消耗', '花费(美元)', '花费', 'spend', 'amount_spent', 'cost'],
-            '日期': ['消耗时间', '日期', '开始日期', '时间', 'date', 'day', 'created_at']
+            '日期': ['消耗时间', '日期', '日期开始', '开始日期', '时间', 'date', 'day', 'created_at']
         }
         def norm_col(value):
             return str(value).strip().lower().replace(' ', '').replace('\n', '').replace('\r', '')
@@ -1196,8 +1227,9 @@ else:
                     '客户': client_str,
                     '渠道': str(row.get('渠道', '')).strip()
                 }
-                if cname:
-                    customer_name_dict[normalize_cons_text(cname)] = customer_dict[cid]
+                cname_key = normalize_cons_text(cname)
+                if cname_key:
+                    customer_name_dict[cname_key] = customer_dict[cid]
                 if client_str:
                     all_client_options.add(client_str)
     if not tt_cus.empty:
@@ -1212,8 +1244,9 @@ else:
                     '客户': client_str,
                     '渠道': str(row.get('渠道', '')).strip()
                 }
-                if cname:
-                    customer_name_dict[normalize_cons_text(cname)] = customer_dict[cid]
+                cname_key = normalize_cons_text(cname)
+                if cname_key:
+                    customer_name_dict[cname_key] = customer_dict[cid]
                 if client_str:
                     all_client_options.add(client_str)
 
@@ -1244,7 +1277,7 @@ else:
         "系统消耗账",
         required=["账号ID/广告账户ID", "账号名称/广告账户名称", "消耗/花费", "日期/时间"],
         optional=["客户", "渠道", "平台"],
-        aliases=["账户ID", "广告账户ID", "广告账户", "账户名称", "广告账户名称", "消耗金额", "花费(美元)", "花费", "spend", "date", "day"],
+        aliases=["账户ID", "广告账户ID", "广告账户", "账户名称", "广告账户名称", "消耗金额", "花费(美元)", "花费", "日期开始", "消耗时间", "spend", "date", "day"],
         note="如果账号ID变成科学计数法、带 .0，或账号ID和名称列放反，系统会自动清洗并尝试纠正。",
     )
     extract_files = st.file_uploader(
@@ -1268,6 +1301,10 @@ else:
             for col in ['账号ID', '账号名称', '消耗', '日期']:
                 if col not in df.columns:
                     df[col] = ''
+
+            df = df[~df.apply(is_summary_or_empty_consumption_row, axis=1)].copy()
+            if df.empty:
+                continue
 
             df['账号ID'] = df['账号ID'].apply(normalize_cons_account_id)
             df['账号名称'] = df['账号名称'].astype(str).str.strip().replace({'nan': '', 'None': '', '<NA>': ''})
@@ -1310,7 +1347,7 @@ else:
 
             matched = df.apply(match_customer, axis=1)
             df = pd.concat([df, matched], axis=1)
-            df = df[(df['账号ID'].astype(str).str.strip() != '') | (df['账号名称'].astype(str).str.strip() != '')]
+            df = df[(df['账号ID'].apply(looks_like_account_id)) | (df['账号名称'].apply(normalize_cons_text) != '')]
             df['来源文件'] = getattr(f, 'name', '')
             frames.append(df[['日期', '账号ID', '账号名称', '消耗', '平台', '渠道', '客户', '匹配方式', '来源文件']])
 
@@ -1342,7 +1379,7 @@ else:
                         if key in st.session_state:
                             del st.session_state[key]
                     st.session_state['extract_customer_data'] = output.getvalue()
-                    st.session_state['extract_customer_name'] = f"清洗提取客户数据_{datetime.today().strftime('%Y%m%d')}.xlsx"
+                    st.session_state['extract_customer_name'] = build_consumption_extract_filename(extracted_df)
                     st.session_state['extract_customer_success'] = f"✅ 清洗完成，共 {len(extracted_df)} 条；已匹配客户 {matched_count} 条"
                     st.session_state['extract_customer_preview'] = extracted_df
 
@@ -1391,6 +1428,10 @@ else:
                 if col not in df.columns:
                     df[col] = np.nan
 
+            df = df[~df.apply(is_summary_or_empty_consumption_row, axis=1)].copy()
+            if df.empty:
+                continue
+
             df['账号ID'] = df['账号ID'].apply(normalize_cons_account_id)
             df['账号名称'] = df['账号名称'].astype(str).str.strip()
             df['消耗'] = df['消耗'].apply(clean_cons_amount).fillna(0)
@@ -1411,7 +1452,8 @@ else:
 
             df['平台'] = df['账号ID'].map(lambda x: customer_dict.get(x, {}).get('平台', '未知') if customer_dict else '未上传档案')
             df['客户'] = df['账号ID'].map(lambda x: customer_dict.get(x, {}).get('客户', '') if customer_dict else '')
-            df = df[['账号ID', '账号名称', '消耗', '日期', '平台', '客户']].dropna(subset=['账号ID'])
+            df = df[(df['账号ID'].apply(looks_like_account_id)) | (df['账号名称'].apply(normalize_cons_text) != '')]
+            df = df[['账号ID', '账号名称', '消耗', '日期', '平台', '客户']]
             df_list.append(df)
 
         if not df_list:
