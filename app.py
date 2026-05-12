@@ -848,10 +848,16 @@ if work_mode == "财务系统-日记账对账":
                     ('FB', fb_customers),
                     ('TT', tt_customers)
                 )
+                duplicate_ids = set()
+                duplicate_name_keys = set()
                 if not duplicate_assignments.empty:
-                    st.error("客户档案中发现同一账号分配给多个客户。为避免对账结果出错，请先修正客户档案后再开始对账。")
-                    st.dataframe(duplicate_assignments)
-                    st.stop()
+                    duplicate_ids = set(duplicate_assignments['账号ID'].astype(str).str.strip())
+                    duplicate_name_keys = {
+                        normalize_match_text(name)
+                        for name in duplicate_assignments['账号名称'].astype(str)
+                        if normalize_match_text(name)
+                    }
+                    st.warning("客户档案中发现同一账号分配给多个客户；相关流水将单独写入报告的“7.客户分配重复”，不参与正常漏记/多记判断。")
 
                 fb_dict = {}
                 fb_name_dict = {}
@@ -861,10 +867,12 @@ if work_mode == "财务系统-日记账对账":
                     channel = str(row.get('渠道', '')).strip()
                     client = str(row.get('客户', '')).strip()
                     if cid:
+                        name_key = normalize_match_text(cname)
+                        if cid in duplicate_ids or name_key in duplicate_name_keys:
+                            continue
                         new_info = {'id': cid, 'name': cname, 'channel': channel, 'client': client, 'plat': 'FB'}
                         if cid not in fb_dict:
                             fb_dict[cid] = new_info
-                        name_key = normalize_match_text(cname)
                         if name_key and name_key not in fb_name_dict:
                             fb_name_dict[name_key] = new_info
                 tt_dict = {}
@@ -875,10 +883,12 @@ if work_mode == "财务系统-日记账对账":
                     channel = str(row.get('渠道', '')).strip()
                     client = str(row.get('客户', '')).strip()
                     if cid:
+                        name_key = normalize_match_text(cname)
+                        if cid in duplicate_ids or name_key in duplicate_name_keys:
+                            continue
                         new_info = {'id': cid, 'name': cname, 'channel': channel, 'client': client, 'plat': 'TT'}
                         if cid not in tt_dict:
                             tt_dict[cid] = new_info
-                        name_key = normalize_match_text(cname)
                         if name_key and name_key not in tt_name_dict:
                             tt_name_dict[name_key] = new_info
 
@@ -896,6 +906,67 @@ if work_mode == "财务系统-日记账对账":
                 if not journal.empty:
                     journal['_原始账号ID'] = journal.get('账号ID', '').astype(str)
                     journal['_原始时间'] = journal.get('时间', '').astype(str)
+
+                duplicate_customer_issue = pd.DataFrame()
+                if not duplicate_assignments.empty:
+                    duplicate_clients_by_id = (
+                        duplicate_assignments
+                        .groupby('账号ID')['客户']
+                        .apply(lambda s: ' / '.join(sorted(set(str(v).strip() for v in s if str(v).strip()))))
+                        .to_dict()
+                    )
+                    duplicate_records = []
+
+                    def is_duplicate_customer_row(row):
+                        raw_id = normalize_id_text(row.get('账号ID', ''))
+                        raw_original_id = normalize_id_text(row.get('_原始账号ID', ''))
+                        name_key = normalize_match_text(row.get('账号名称', ''))
+                        return raw_id in duplicate_ids or raw_original_id in duplicate_ids or name_key in duplicate_name_keys
+
+                    def collect_duplicate_customer_rows(df, source_name):
+                        if df.empty:
+                            return
+                        mask = df.apply(is_duplicate_customer_row, axis=1)
+                        for _, row in df[mask].iterrows():
+                            rid = normalize_id_text(row.get('账号ID', '')) or normalize_id_text(row.get('_原始账号ID', ''))
+                            duplicate_records.append({
+                                '来源': source_name,
+                                '异常类型': '客户分配重复',
+                                '账号ID': rid,
+                                '账号名称': row.get('账号名称', ''),
+                                '类型': row.get('类型', ''),
+                                '金额': row.get('金额', ''),
+                                '时间': row.get('时间', ''),
+                                '原始时间': row.get('_原始时间', ''),
+                                '重复客户': duplicate_clients_by_id.get(rid, ''),
+                                '提示': '请核实，此账号客户分配重复',
+                            })
+
+                    collect_duplicate_customer_rows(sys_df, '系统账')
+                    collect_duplicate_customer_rows(journal, '日记账')
+
+                    duplicate_assignment_rows = duplicate_assignments.assign(
+                        来源='客户档案',
+                        异常类型='客户分配重复',
+                        类型='',
+                        金额='',
+                        时间='',
+                        原始时间='',
+                    )
+                    duplicate_customer_issue = pd.concat(
+                        [duplicate_assignment_rows, pd.DataFrame(duplicate_records)],
+                        ignore_index=True,
+                        sort=False
+                    )
+                    duplicate_cols = ['来源', '异常类型', '账号ID', '账号名称', '类型', '金额', '时间', '原始时间', '渠道', '客户', '重复客户', '提示', '平台']
+                    for col in duplicate_cols:
+                        if col not in duplicate_customer_issue.columns:
+                            duplicate_customer_issue[col] = ''
+                    duplicate_customer_issue = duplicate_customer_issue[duplicate_cols]
+
+                    sys_df = sys_df[~sys_df.apply(is_duplicate_customer_row, axis=1)].copy()
+                    if not journal.empty:
+                        journal = journal[~journal.apply(is_duplicate_customer_row, axis=1)].copy()
 
                 def canonical_journal_id(row):
                     raw_id = normalize_id_text(row.get('账号ID', ''))
@@ -941,8 +1012,10 @@ if work_mode == "财务系统-日记账对账":
                     sys_df = sys_df[sys_df['所属平台'].notna()]
 
                 if sys_df.empty:
-                    st.error("匹配后无有效系统记录，对账中止")
-                    st.stop()
+                    if duplicate_customer_issue.empty:
+                        st.error("匹配后无有效系统记录，对账中止")
+                        st.stop()
+                    st.warning("匹配后无有效系统记录，但已发现客户分配重复异常，将继续导出异常报告。")
 
                 def get_channel_from_dict(acc_id):
                     acc_str = str(acc_id).strip()
@@ -997,8 +1070,10 @@ if work_mode == "财务系统-日记账对账":
                             journal = df
 
                 if sys_df.empty:
-                    st.warning("筛选时间范围后，系统账单无数据，无法对账")
-                    st.stop()
+                    if duplicate_customer_issue.empty:
+                        st.warning("筛选时间范围后，系统账单无数据，无法对账")
+                        st.stop()
+                    st.warning("筛选时间范围后系统账单无数据，但已发现客户分配重复异常，将继续导出异常报告。")
 
                 if '全部渠道' not in selected_channels and len(selected_channels) > 0:
                     filter_channels = set()
@@ -1014,8 +1089,10 @@ if work_mode == "财务系统-日记账对账":
                         journal = journal[journal['渠道'].isin(filter_channels)]
 
                 if sys_df.empty:
-                    st.warning("筛选渠道后，系统账单无数据，无法对账")
-                    st.stop()
+                    if duplicate_customer_issue.empty:
+                        st.warning("筛选渠道后，系统账单无数据，无法对账")
+                        st.stop()
+                    st.warning("筛选渠道后系统账单无数据，但已发现客户分配重复异常，将继续导出异常报告。")
 
                 if selected_clients:
                     if '客户' in sys_df.columns:
@@ -1024,8 +1101,10 @@ if work_mode == "财务系统-日记账对账":
                         journal = journal[journal['客户'].isin(selected_clients)]
 
                 if sys_df.empty:
-                    st.warning("筛选客户后，系统账单无数据，无法对账")
-                    st.stop()
+                    if duplicate_customer_issue.empty:
+                        st.warning("筛选客户后，系统账单无数据，无法对账")
+                        st.stop()
+                    st.warning("筛选客户后系统账单无数据，但已发现客户分配重复异常，将继续导出异常报告。")
 
                 if platform_scope == "仅 Facebook":
                     sys_df = sys_df[sys_df['所属平台'] == 'FB']
@@ -1035,8 +1114,10 @@ if work_mode == "财务系统-日记账对账":
                     journal = journal[journal['来源平台'] == 'TT日记账'] if not journal.empty else journal
 
                 if sys_df.empty:
-                    st.warning("在当前平台范围内，系统账单无数据，无法对账")
-                    st.stop()
+                    if duplicate_customer_issue.empty:
+                        st.warning("在当前平台范围内，系统账单无数据，无法对账")
+                        st.stop()
+                    st.warning("当前平台范围内系统账单无数据，但已发现客户分配重复异常，将继续导出异常报告。")
 
             for df in [sys_df, journal]:
                 if not df.empty:
@@ -1138,8 +1219,8 @@ if work_mode == "财务系统-日记账对账":
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine='openpyxl') as writer:
                 summary = pd.DataFrame({
-                    "核查项目": ["1.漏记(系统有日记无)", "2.多记(日记有系统无)", "3.金额不符", "4.类型不符", "5.系统重复", "6.日记账重复"],
-                    "异常条数": [len(missing_in_j), len(missing_in_s), len(amt_diff), len(typ_diff), len(sys_dup), len(jnl_dup)]
+                    "核查项目": ["1.漏记(系统有日记无)", "2.多记(日记有系统无)", "3.金额不符", "4.类型不符", "5.系统重复", "6.日记账重复", "7.客户分配重复"],
+                    "异常条数": [len(missing_in_j), len(missing_in_s), len(amt_diff), len(typ_diff), len(sys_dup), len(jnl_dup), len(duplicate_customer_issue)]
                 })
                 summary.to_excel(writer, sheet_name="对账汇总", index=False)
                 missing_in_j.to_excel(writer, sheet_name="1.漏记", index=False)
@@ -1150,6 +1231,7 @@ if work_mode == "财务系统-日记账对账":
                     typ_diff[['主键','账号ID_系统','时间_系统','类型_系统','类型_日记账']].to_excel(writer, sheet_name="4.类型不符", index=False)
                 sys_dup.to_excel(writer, sheet_name="5.系统重复", index=False)
                 jnl_dup.to_excel(writer, sheet_name="6.日记账重复", index=False)
+                duplicate_customer_issue.to_excel(writer, sheet_name="7.客户分配重复", index=False)
                 debug_detail.to_excel(writer, sheet_name="调试明细", index=False)
 
             today_str = datetime.today().strftime("%Y%m%d")
