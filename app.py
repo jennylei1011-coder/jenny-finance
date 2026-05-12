@@ -13,6 +13,7 @@ warnings.filterwarnings('ignore')
 
 APP_DIR = Path(__file__).resolve().parent
 ASSET_DIR = APP_DIR / "assets"
+# top-logo.png：页面顶部小 Logo；favicon.png：浏览器标签页图标
 TOP_LOGO_PATH = ASSET_DIR / "top-logo.png"
 PAGE_ICON_PATH = ASSET_DIR / "favicon.png"
 
@@ -29,139 +30,159 @@ def image_data_uri(path):
     encoded = base64.b64encode(path.read_bytes()).decode("utf-8")
     return f"data:image/png;base64,{encoded}"
 
-# ========== 粉色系简洁主题（全局） ==========
+# ========== 简约粉色财务工具主题（紧凑版） ==========
 st.markdown("""
 <style>
     :root {
-        --pink-25: #fff9fc;
-        --pink-50: #fff2f7;
-        --pink-100: #ffe4ee;
+        --bg: #fff7fb;
+        --panel: rgba(255, 255, 255, 0.90);
+        --panel-solid: #ffffff;
+        --pink-25: #fff8fb;
+        --pink-50: #fff1f6;
+        --pink-100: #ffe3ed;
         --pink-200: #ffc8dc;
-        --pink-400: #ef6f9f;
-        --pink-500: #d94f86;
-        --pink-600: #bf3d72;
-        --ink: #352631;
-        --muted: #7f6370;
-        --line: rgba(217, 79, 134, 0.16);
-        --panel: rgba(255, 255, 255, 0.78);
-        --shadow: 0 14px 36px rgba(163, 67, 108, 0.12);
+        --pink-300: #f7a5c2;
+        --pink-400: #ee77a5;
+        --pink-500: #d94f88;
+        --pink-600: #bd3f75;
+        --ink: #372630;
+        --muted: #806674;
+        --soft: #a38c98;
+        --line: rgba(217, 79, 136, 0.16);
+        --shadow: 0 16px 40px rgba(145, 63, 100, 0.10);
     }
 
     .stApp {
         background:
-            radial-gradient(circle at 6% 2%, rgba(255, 210, 226, 0.72), transparent 24rem),
-            radial-gradient(circle at 96% 0%, rgba(255, 235, 244, 0.92), transparent 28rem),
-            linear-gradient(135deg, #fffafd 0%, #fff4f8 42%, #fff0f6 100%);
-        color: var(--ink);
+            radial-gradient(circle at 8% 0%, rgba(255, 202, 221, 0.48), transparent 32rem),
+            radial-gradient(circle at 92% 4%, rgba(255, 232, 241, 0.8), transparent 30rem),
+            linear-gradient(135deg, #fffbfd 0%, #fff5f9 50%, #fff0f6 100%);
     }
 
     .block-container {
-        max-width: 1220px;
-        padding-top: 1rem;
-        padding-bottom: 2rem;
+        max-width: 1240px;
+        padding-top: 1.05rem;
+        padding-bottom: 2.4rem;
     }
 
-    header[data-testid="stHeader"], footer, #MainMenu {
-        visibility: hidden;
-    }
+    header[data-testid="stHeader"], footer, #MainMenu { visibility: hidden; }
 
-    .app-hero {
-        position: relative;
-        overflow: hidden;
-        display: grid;
-        grid-template-columns: auto 1fr;
-        align-items: center;
-        gap: 18px;
-        background: rgba(255, 255, 255, 0.72);
-        backdrop-filter: blur(16px);
+    /* 顶部品牌区：小 logo，不占空间，不出现白底块 */
+    .brand-shell {
+        background: linear-gradient(135deg, rgba(255,255,255,0.92), rgba(255,247,251,0.92));
         border: 1px solid var(--line);
         border-radius: 22px;
-        padding: 16px 20px;
-        margin-bottom: 12px;
         box-shadow: var(--shadow);
+        padding: 14px 18px;
+        margin-bottom: 12px;
     }
-
-    .app-hero:after {
-        content: "";
-        position: absolute;
-        right: -120px;
-        top: -150px;
-        width: 320px;
-        height: 320px;
-        background: radial-gradient(circle, rgba(239, 111, 159, 0.15), transparent 64%);
-        pointer-events: none;
+    .brand-row {
+        display: flex;
+        align-items: center;
+        gap: 14px;
     }
-
-    .app-hero > * {
-        position: relative;
-        z-index: 1;
-    }
-
-    .hero-logo {
-        display: block;
-        width: 74px;
-        height: 74px;
+    .brand-logo {
+        width: 62px;
+        height: 62px;
         object-fit: contain;
-        filter: drop-shadow(0 10px 16px rgba(217, 79, 134, 0.18));
+        display: block;
+        filter: drop-shadow(0 10px 18px rgba(217, 79, 136, 0.20));
     }
-
-    .hero-kicker {
-        color: var(--pink-600);
-        font-size: 0.74rem;
-        font-weight: 800;
-        letter-spacing: .08em !important;
-        margin-bottom: 3px;
-    }
-
-    .hero-title {
+    .brand-title {
         color: var(--ink);
-        font-size: 1.62rem;
-        line-height: 1.12;
+        font-size: 1.55rem;
+        line-height: 1.15;
         font-weight: 850;
+        margin: 0 0 3px 0;
+        letter-spacing: 0 !important;
+    }
+    .brand-subtitle {
+        color: var(--muted);
+        font-size: 0.92rem;
+        line-height: 1.5;
         margin: 0;
     }
-
-    .hero-subtitle {
-        color: var(--muted);
-        max-width: 820px;
-        margin: 5px 0 0;
-        line-height: 1.55;
-        font-size: 0.92rem;
+    .brand-badge {
+        margin-left: auto;
+        color: var(--pink-600);
+        background: rgba(255, 227, 237, 0.66);
+        border: 1px solid rgba(217, 79, 136, 0.14);
+        border-radius: 999px;
+        padding: 7px 12px;
+        font-size: 0.82rem;
+        font-weight: 800;
+        white-space: nowrap;
     }
 
+    .mode-title {
+        color: var(--ink);
+        font-size: 0.95rem;
+        font-weight: 850;
+        margin: 4px 0 6px 2px;
+    }
+
+    /* 工作模式按钮：做成整齐的分段按钮 */
+    div[role="radiogroup"] {
+        background: rgba(255,255,255,0.72);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 6px;
+        gap: 8px;
+        box-shadow: 0 8px 24px rgba(145, 63, 100, 0.06);
+    }
+    div[role="radiogroup"] label {
+        background: #fffafd;
+        border: 1px solid rgba(217, 79, 136, 0.13);
+        border-radius: 12px;
+        padding: 9px 14px !important;
+        min-height: 40px;
+        justify-content: center;
+        transition: all 150ms ease;
+    }
+    div[role="radiogroup"] label:hover {
+        border-color: rgba(217, 79, 136, 0.34);
+        background: #fff4f8;
+    }
+    div[role="radiogroup"] label:has(input:checked) {
+        border-color: rgba(217, 79, 136, 0.42);
+        background: linear-gradient(135deg, #fff1f6, #ffe2ed);
+        box-shadow: inset 0 0 0 1px rgba(217, 79, 136, 0.10);
+    }
+    div[role="radiogroup"] p {
+        color: var(--ink) !important;
+        font-weight: 800 !important;
+    }
+
+    /* 简洁步骤提示 */
     .guide-card {
-        background: rgba(255,255,255,0.62);
+        background: rgba(255, 255, 255, 0.72);
         border: 1px solid var(--line);
         border-radius: 18px;
         padding: 12px 14px;
-        margin: 8px 0 12px;
-        box-shadow: 0 8px 22px rgba(177, 77, 116, 0.08);
+        margin: 10px 0 14px;
+        box-shadow: 0 10px 26px rgba(145, 63, 100, 0.06);
     }
-
     .guide-title {
         color: var(--pink-600);
         font-weight: 850;
         margin-bottom: 8px;
         font-size: 0.96rem;
     }
-
     .guide-grid {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 8px;
     }
-
     .guide-step {
-        min-height: 54px;
+        min-height: 48px;
         background: #fffafd;
-        border: 1px solid rgba(255, 200, 220, 0.74);
+        border: 1px solid rgba(255, 200, 220, 0.72);
         border-radius: 13px;
         padding: 9px 10px;
         color: var(--muted);
-        line-height: 1.42;
+        line-height: 1.35;
         font-size: 0.86rem;
     }
-
     .guide-step b {
         display: block;
         color: var(--ink);
@@ -170,52 +191,17 @@ st.markdown("""
     }
 
     .hint-card {
-        background: rgba(255, 250, 253, 0.92);
-        border: 1px solid rgba(217, 79, 134, 0.13);
-        border-left: 4px solid var(--pink-400);
+        background: rgba(255, 250, 253, 0.82);
+        border: 1px solid rgba(217, 79, 136, 0.12);
+        border-left: 3px solid var(--pink-400);
         border-radius: 13px;
         padding: 9px 11px;
         margin: 6px 0 10px;
         color: var(--muted);
-        line-height: 1.55;
+        line-height: 1.5;
         font-size: 0.88rem;
     }
-
     .hint-card b { color: var(--ink); }
-
-    .field-grid {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 8px;
-        margin-top: 8px;
-    }
-
-    .field-box {
-        background: #fffafd;
-        border: 1px solid rgba(255, 200, 220, 0.72);
-        border-radius: 12px;
-        padding: 9px 10px;
-        min-height: 68px;
-        color: var(--muted);
-        line-height: 1.48;
-        font-size: 0.84rem;
-    }
-
-    .field-box b {
-        display: block;
-        color: var(--pink-600);
-        margin-bottom: 4px;
-    }
-
-    .field-box code {
-        background: rgba(255, 228, 238, 0.76);
-        color: var(--ink);
-        border-radius: 7px;
-        padding: 1px 5px;
-        font-size: 0.78rem;
-        display: inline-block;
-        margin: 1px 2px 2px 0;
-    }
 
     .section-title {
         display: flex;
@@ -223,77 +209,118 @@ st.markdown("""
         gap: 10px;
         margin: 16px 0 8px;
     }
-
     .section-title .dot {
         width: 8px;
         height: 22px;
         border-radius: 999px;
         background: linear-gradient(180deg, var(--pink-500), var(--pink-200));
-        box-shadow: 0 8px 18px rgba(239, 111, 159, 0.24);
+        box-shadow: 0 8px 18px rgba(217, 79, 136, 0.20);
+        flex: 0 0 auto;
     }
-
     .section-title h2 {
         color: var(--ink) !important;
-        font-size: 1.02rem !important;
+        font-size: 1.04rem !important;
         line-height: 1.25;
         margin: 0 !important;
         padding: 0 !important;
         border: 0 !important;
     }
-
     .section-title p {
         color: var(--muted);
         margin: 1px 0 0;
-        font-size: 0.82rem;
+        font-size: 0.84rem;
     }
 
-    h1, h2, h3, h4, p, span, div, label {
-        letter-spacing: 0 !important;
+    details {
+        background: rgba(255, 255, 255, 0.50);
+        border: 1px solid rgba(217, 79, 136, 0.10);
+        border-radius: 13px;
+        padding: 8px 10px;
+        margin: 6px 0 8px;
+    }
+    details > summary {
+        cursor: pointer;
+        color: var(--pink-600) !important;
+        font-weight: 850 !important;
+        font-size: 0.88rem;
+        list-style: none;
+    }
+    details > summary::-webkit-details-marker { display: none; }
+    details > summary:before { content: "▸ "; color: var(--pink-400); }
+    details[open] > summary:before { content: "▾ "; }
+    .field-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+        margin-top: 8px;
+    }
+    .field-box {
+        background: #fffafd;
+        border: 1px solid rgba(255, 200, 220, 0.70);
+        border-radius: 11px;
+        padding: 9px 10px;
+        min-height: 70px;
+        color: var(--muted);
+        line-height: 1.45;
+        font-size: 0.84rem;
+    }
+    .field-box b {
+        display: block;
+        color: var(--pink-600);
+        margin-bottom: 4px;
+    }
+    .field-box code {
+        background: rgba(255, 227, 237, 0.76);
+        color: var(--ink);
+        border-radius: 6px;
+        padding: 1px 5px;
+        font-size: 0.80rem;
+        white-space: nowrap;
     }
 
+    h1, h2, h3, h4, p, span, div, label { letter-spacing: 0 !important; }
     h1, h2, h3, h4 { color: var(--ink) !important; }
 
+    /* Streamlit 表单控件紧凑化 */
     .stFileUploader, .stSelectbox, .stMultiSelect, .stDateInput, .stCheckbox, .stRadio {
-        background: rgba(255, 255, 255, 0.68);
+        background: rgba(255, 255, 255, 0.70);
         border: 1px solid var(--line);
-        border-radius: 16px;
-        padding: 8px 10px;
-        box-shadow: 0 6px 18px rgba(177, 77, 116, 0.06);
+        border-radius: 15px;
+        padding: 10px 12px;
+        box-shadow: 0 8px 22px rgba(145, 63, 100, 0.055);
+        min-height: 72px;
     }
-
-    .stFileUploader:hover, .stSelectbox:hover, .stMultiSelect:hover, .stDateInput:hover {
-        border-color: rgba(217, 79, 134, 0.38);
-        box-shadow: 0 8px 22px rgba(177, 77, 116, 0.10);
+    .stCheckbox {
+        min-height: 72px;
+        display: flex;
+        align-items: center;
     }
-
+    .stFileUploader:hover, .stSelectbox:hover, .stMultiSelect:hover, .stDateInput:hover, .stCheckbox:hover {
+        border-color: rgba(217, 79, 136, 0.32);
+        box-shadow: 0 10px 26px rgba(145, 63, 100, 0.09);
+    }
     .stFileUploader label, .stSelectbox label, .stMultiSelect label, .stDateInput label, .stCheckbox label, .stRadio label {
         color: var(--ink) !important;
-        font-weight: 750;
-        font-size: 0.9rem;
+        font-weight: 800;
+        font-size: 0.90rem !important;
     }
-
     div[data-testid="stFileUploaderDropzone"] {
-        min-height: 74px !important;
-        border-radius: 14px !important;
-        border-color: rgba(217, 79, 134, 0.20) !important;
+        border-radius: 13px !important;
+        border-color: rgba(217, 79, 136, 0.22) !important;
         background: #fffafd !important;
-        padding: 8px !important;
+        padding: 10px !important;
+        min-height: 78px !important;
     }
-
-    div[data-testid="stFileUploaderDropzone"] section {
-        padding: 0.35rem !important;
+    div[data-testid="stFileUploaderDropzone"] section { padding: 0 !important; }
+    div[data-testid="stFileUploaderDropzone"] button {
+        border-radius: 999px !important;
+        border-color: rgba(217, 79, 136, 0.24) !important;
     }
-
-    div[data-testid="stFileUploaderDropzone"] small {
-        display: none !important;
-    }
-
     div[data-baseweb="select"] > div,
     div[data-baseweb="input"] > div {
         border-radius: 12px !important;
-        border-color: rgba(217, 79, 134, 0.22) !important;
-        background-color: rgba(255,255,255,0.94) !important;
-        min-height: 38px !important;
+        border-color: rgba(217, 79, 136, 0.20) !important;
+        background: #fffafd !important;
     }
 
     .stButton > button, .stDownloadButton > button {
@@ -304,60 +331,44 @@ st.markdown("""
         background: linear-gradient(135deg, var(--pink-600), var(--pink-400)) !important;
         color: white !important;
         font-weight: 850 !important;
-        box-shadow: 0 12px 26px rgba(217, 79, 134, 0.25);
+        box-shadow: 0 12px 26px rgba(217, 79, 136, 0.24);
         transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease;
     }
-
     .stButton > button:hover, .stDownloadButton > button:hover {
         transform: translateY(-1px);
         filter: brightness(1.02);
-        box-shadow: 0 16px 34px rgba(217, 79, 134, 0.30);
+        box-shadow: 0 16px 32px rgba(217, 79, 136, 0.30);
     }
 
     .stAlert {
-        border-radius: 14px !important;
+        border-radius: 13px !important;
         border: 1px solid var(--line) !important;
-        background: rgba(255, 250, 253, 0.92) !important;
+        background: rgba(255, 250, 253, 0.90) !important;
         color: var(--ink) !important;
-        padding: 0.75rem 1rem !important;
+        padding: 0.65rem 0.85rem !important;
     }
-
     .stDataFrame {
         border: 1px solid var(--line);
         border-radius: 14px;
         overflow: hidden;
     }
-
-    details {
-        background: rgba(255,255,255,0.46);
-        border: 1px dashed rgba(217,79,134,0.20);
-        border-radius: 13px;
-        padding: 8px 10px;
-        margin-bottom: 8px;
-    }
-
-    summary {
-        list-style: none;
-    }
-
-    summary::-webkit-details-marker { display: none; }
-
+    hr { margin: 0.6rem 0 !important; }
     div[data-testid="stVerticalBlock"] { gap: 0.55rem; }
+    div[data-testid="column"] { padding: 0 0.25rem; }
 
-    ::-webkit-scrollbar { width: 9px; height: 9px; }
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
     ::-webkit-scrollbar-track { background: var(--pink-50); }
     ::-webkit-scrollbar-thumb { background: var(--pink-200); border-radius: 999px; }
     ::-webkit-scrollbar-thumb:hover { background: var(--pink-400); }
 
     @media (max-width: 760px) {
         .block-container { padding-top: 0.8rem; }
-        .app-hero {
-            grid-template-columns: 1fr;
-            text-align: center;
-            padding: 16px;
-        }
-        .hero-logo { width: 78px; height: 78px; margin: 0 auto; }
-        .hero-title { font-size: 1.42rem; }
+        .brand-shell { padding: 12px 14px; border-radius: 18px; }
+        .brand-row { align-items: flex-start; gap: 10px; }
+        .brand-logo { width: 50px; height: 50px; }
+        .brand-title { font-size: 1.30rem; }
+        .brand-subtitle { font-size: 0.84rem; }
+        .brand-badge { display: none; }
         .guide-grid { grid-template-columns: 1fr; }
         .field-grid { grid-template-columns: 1fr; }
     }
@@ -412,7 +423,7 @@ def field_requirements(title, required, optional=None, aliases=None, note=None):
     st.markdown(
         f"""
         <details>
-            <summary style="cursor:pointer; color:#db4b87; font-weight:800; margin:6px 0 10px;">查看{title}字段要求</summary>
+            <summary>查看{title}字段要求</summary>
             <div class="field-grid">{''.join(blocks)}</div>
             {note_html}
         </details>
@@ -421,25 +432,33 @@ def field_requirements(title, required, optional=None, aliases=None, note=None):
     )
 
 top_logo_uri = image_data_uri(TOP_LOGO_PATH)
-logo_html = f'<img class="hero-logo" src="{top_logo_uri}" alt="JENNY logo">' if top_logo_uri else ""
+logo_html = f'<img class="brand-logo" src="{top_logo_uri}" alt="JENNY logo">' if top_logo_uri else '<div class="brand-logo"></div>'
 
 st.markdown(f"""
-<div class="app-hero">
-    {logo_html}
-    <div>
-        <div class="hero-kicker">JENNY FINANCE WORKSPACE</div>
-        <h1 class="hero-title">JENNY 对账机器人</h1>
-        <p class="hero-subtitle">粉色系高级财务工具台｜上传账单、筛选范围、自动核对、导出 Excel 报告。</p>
+<div class="brand-shell">
+    <div class="brand-row">
+        {logo_html}
+        <div>
+            <h1 class="brand-title">JENNY 对账机器人</h1>
+            <p class="brand-subtitle">上传账单和客户档案，快速核对漏记、多记、金额差异和客户分配异常。</p>
+        </div>
+        <div class="brand-badge">Excel · 财务对账</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
 
 # ---------- 选择工作模式 ----------
+st.markdown('<div class="mode-title">选择对账模式</div>', unsafe_allow_html=True)
 work_mode = st.radio(
     "选择对账模式",
-    ["财务系统-日记账对账", "消耗账单对账 (新)"],
+    ["财务系统-日记账对账", "消耗账单对账"],
     horizontal=True,
+    label_visibility="collapsed",
 )
+
+# 兼容旧版名称
+if work_mode == "消耗账单对账":
+    work_mode = "消耗账单对账 (新)"
 
 # =================================================================
 # 模式一：原有财务系统-日记账对账（持久化下载按钮）
@@ -468,9 +487,9 @@ if work_mode == "财务系统-日记账对账":
 
     col_cus1, col_cus2 = st.columns(2)
     with col_cus1:
-        fb_customer_files = st.file_uploader("🔵 上传 FB 客户档案（可多选）", type=["xlsx", "xls"], accept_multiple_files=True, key="fb_customer")
+        fb_customer_files = st.file_uploader("FB 客户档案（可多选）", type=["xlsx", "xls"], accept_multiple_files=True, key="fb_customer")
     with col_cus2:
-        tt_customer_files = st.file_uploader("🟠 上传 TT 客户档案（可多选）", type=["xlsx", "xls"], accept_multiple_files=True, key="tt_customer")
+        tt_customer_files = st.file_uploader("TT 客户档案（可多选）", type=["xlsx", "xls"], accept_multiple_files=True, key="tt_customer")
 
     # ========== 通用工具函数 ==========
     def normalize_columns(df):
@@ -645,14 +664,14 @@ if work_mode == "财务系统-日记账对账":
     )
     col_j1, col_j2 = st.columns(2)
     with col_j1:
-        fb_journal_files = st.file_uploader("🔵 上传 FB 日记账（可多选）", type=["xlsx", "xls"], accept_multiple_files=True)
+        fb_journal_files = st.file_uploader("FB 日记账（可多选）", type=["xlsx", "xls"], accept_multiple_files=True)
     with col_j2:
-        tt_journal_files = st.file_uploader("🟠 上传 TT 日记账（可多选）", type=["xlsx", "xls"], accept_multiple_files=True)
+        tt_journal_files = st.file_uploader("TT 日记账（可多选）", type=["xlsx", "xls"], accept_multiple_files=True)
 
     section_title("筛选条件", "按平台、渠道、客户和日期缩小本次核对范围。")
     filter_col1, filter_col2 = st.columns([1, 2])
     with filter_col1:
-        platform_scope = st.selectbox("🔍 选择本次对账平台范围", ["全部平台", "仅 Facebook", "仅 TikTok"])
+        platform_scope = st.selectbox("选择本次对账平台范围", ["全部平台", "仅 Facebook", "仅 TikTok"])
 
     channel_options = ['全部渠道']
     if fb_customers is not None or tt_customers is not None:
@@ -669,7 +688,7 @@ if work_mode == "财务系统-日记账对账":
 
     with filter_col2:
         selected_channels = st.multiselect(
-            "📌 选择渠道（可多选，默认全部）",
+            "选择渠道（可多选，默认全部）",
             options=channel_options,
             default=['全部渠道']
         )
@@ -684,15 +703,15 @@ if work_mode == "财务系统-日记账对账":
         all_clients.discard('')
         client_options = sorted(all_clients)
 
-    filter_col3, filter_col4 = st.columns([2, 1])
+    filter_col3, filter_col4 = st.columns([2, 1.15])
     with filter_col3:
         selected_clients = st.multiselect(
-            "🧑 选择客户（可多选，默认全部）",
+            "选择客户（可多选，默认全部）",
             options=client_options,
             default=[]
         )
     with filter_col4:
-        use_custom_date = st.checkbox("📅 启用自定义日期范围", value=False)
+        use_custom_date = st.checkbox("启用自定义日期范围", value=False)
 
     if use_custom_date:
         col_t1, col_t2 = st.columns(2)
@@ -881,7 +900,7 @@ if work_mode == "财务系统-日记账对账":
             return None, '', '', id_str, "账号ID和账号名称均未在客户档案中找到，请核实信息"
 
     # ========== 开始对账 ==========
-    if st.button("✨ 开始自动对账", type="primary"):
+    if st.button("开始自动对账", type="primary"):
         for key in ['mode1_report_data', 'mode1_report_name', 'mode1_success']:
             if key in st.session_state:
                 del st.session_state[key]
@@ -1382,7 +1401,7 @@ if work_mode == "财务系统-日记账对账":
     if 'mode1_report_data' in st.session_state:
         st.success(st.session_state['mode1_success'])
         st.download_button(
-            label="📥 下载对账报告",
+            label="下载对账报告",
             data=st.session_state['mode1_report_data'],
             file_name=st.session_state['mode1_report_name'],
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -1415,9 +1434,9 @@ else:
     )
     col_c1, col_c2 = st.columns(2)
     with col_c1:
-        cons_fb_files = st.file_uploader("🔵 FB 客户档案", type=["xlsx", "xls"], accept_multiple_files=True, key="cons_fb_cus")
+        cons_fb_files = st.file_uploader("FB 客户档案", type=["xlsx", "xls"], accept_multiple_files=True, key="cons_fb_cus")
     with col_c2:
-        cons_tt_files = st.file_uploader("🟠 TT 客户档案", type=["xlsx", "xls"], accept_multiple_files=True, key="cons_tt_cus")
+        cons_tt_files = st.file_uploader("TT 客户档案", type=["xlsx", "xls"], accept_multiple_files=True, key="cons_tt_cus")
 
     # 读取并记忆客户档案
     def load_cons_customer(files, plat):
@@ -1733,7 +1752,7 @@ else:
         st.success(st.session_state['extract_customer_success'])
         st.dataframe(st.session_state['extract_customer_preview'])
         st.download_button(
-            label="📥 下载清洗提取客户数据",
+            label="下载清洗提取客户数据",
             data=st.session_state['extract_customer_data'],
             file_name=st.session_state['extract_customer_name'],
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -1752,9 +1771,9 @@ else:
     )
     col_a, col_b = st.columns(2)
     with col_a:
-        consumption_files1 = st.file_uploader("📤 消耗账单 ①（可多选）", type=["xlsx", "xls"], accept_multiple_files=True, key="cons1")
+        consumption_files1 = st.file_uploader("消耗账单 ①（可多选）", type=["xlsx", "xls"], accept_multiple_files=True, key="cons1")
     with col_b:
-        consumption_files2 = st.file_uploader("📤 消耗账单 ②（可选，用于比对）", type=["xlsx", "xls"], accept_multiple_files=True, key="cons2")
+        consumption_files2 = st.file_uploader("消耗账单 ②（可选，用于比对）", type=["xlsx", "xls"], accept_multiple_files=True, key="cons2")
 
     hint_card("<b>开始前检查：</b>至少上传消耗账单 ①；如果上传消耗账单 ②，系统会生成两份账单的差异报告。")
 
@@ -1915,7 +1934,7 @@ else:
         col_dl1, col_dl2 = st.columns(2)
         with col_dl1:
             st.download_button(
-                label="📥 下载对账报告",
+                label="下载对账报告",
                 data=st.session_state['mode2_report_data'],
                 file_name=st.session_state['mode2_report_name'],
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
