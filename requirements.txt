@@ -2,3 +2,6 @@ streamlit
 pandas
 numpy
 openpyxl
+xlrd
+opencv-python-headless
+Pillow
