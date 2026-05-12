@@ -1248,20 +1248,6 @@ if work_mode == "财务系统-日记账对账":
                 missing_in_s = journal
                 amt_diff = typ_diff = pd.DataFrame()
 
-            debug_frames = []
-            sys_debug_cols = [c for c in ['_原始账号ID', '账号ID', '账号名称', '_原始时间', '时间', '_匹配时间', '类型', '金额', '所属平台', '渠道', '客户', '主键'] if c in sys_df.columns]
-            if sys_debug_cols:
-                sys_debug = sys_df[sys_debug_cols].copy()
-                sys_debug.insert(0, '来源', '系统账')
-                debug_frames.append(sys_debug)
-            if not journal.empty:
-                jnl_debug_cols = [c for c in ['_原始账号ID', '账号ID', '账号名称', '_原始时间', '时间', '_匹配时间', '类型', '金额', '来源平台', '渠道', '客户', '主键'] if c in journal.columns]
-                if jnl_debug_cols:
-                    jnl_debug = journal[jnl_debug_cols].copy()
-                    jnl_debug.insert(0, '来源', '日记账')
-                    debug_frames.append(jnl_debug)
-            debug_detail = pd.concat(debug_frames, ignore_index=True) if debug_frames else pd.DataFrame()
-
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine='openpyxl') as writer:
                 summary = pd.DataFrame({
@@ -1278,7 +1264,6 @@ if work_mode == "财务系统-日记账对账":
                 sys_dup.to_excel(writer, sheet_name="5.系统重复", index=False)
                 jnl_dup.to_excel(writer, sheet_name="6.日记账重复", index=False)
                 duplicate_customer_issue.to_excel(writer, sheet_name="7.客户分配重复", index=False)
-                debug_detail.to_excel(writer, sheet_name="调试明细", index=False)
 
             today_str = datetime.today().strftime("%Y%m%d")
             client_str = "_".join(selected_clients) if selected_clients else "全部客户"
