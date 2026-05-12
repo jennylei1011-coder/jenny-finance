@@ -33,29 +33,32 @@ def image_data_uri(path):
 st.markdown("""
 <style>
     :root {
-        --pink-25: #fff8fb;
-        --pink-50: #fff1f6;
-        --pink-100: #ffe1ec;
-        --pink-200: #ffc7da;
-        --pink-400: #f26aa2;
-        --pink-500: #db4b87;
-        --ink: #3b2630;
-        --muted: #7c5b68;
-        --line: rgba(219, 75, 135, 0.18);
-        --panel: rgba(255, 255, 255, 0.86);
-        --shadow: 0 16px 44px rgba(177, 77, 116, 0.14);
+        --pink-25: #fff9fc;
+        --pink-50: #fff2f7;
+        --pink-100: #ffe4ee;
+        --pink-200: #ffc8dc;
+        --pink-400: #ef6f9f;
+        --pink-500: #d94f86;
+        --pink-600: #bf3d72;
+        --ink: #352631;
+        --muted: #7f6370;
+        --line: rgba(217, 79, 134, 0.16);
+        --panel: rgba(255, 255, 255, 0.78);
+        --shadow: 0 14px 36px rgba(163, 67, 108, 0.12);
     }
 
     .stApp {
         background:
-            radial-gradient(circle at top left, rgba(255, 205, 223, 0.68), transparent 34rem),
-            linear-gradient(135deg, #fffafd 0%, #fff1f6 45%, #ffe7f0 100%);
+            radial-gradient(circle at 6% 2%, rgba(255, 210, 226, 0.72), transparent 24rem),
+            radial-gradient(circle at 96% 0%, rgba(255, 235, 244, 0.92), transparent 28rem),
+            linear-gradient(135deg, #fffafd 0%, #fff4f8 42%, #fff0f6 100%);
+        color: var(--ink);
     }
 
     .block-container {
-        max-width: 1180px;
-        padding-top: 2rem;
-        padding-bottom: 4rem;
+        max-width: 1220px;
+        padding-top: 1rem;
+        padding-bottom: 2rem;
     }
 
     header[data-testid="stHeader"], footer, #MainMenu {
@@ -65,23 +68,28 @@ st.markdown("""
     .app-hero {
         position: relative;
         overflow: hidden;
-        background: linear-gradient(135deg, rgba(255,255,255,0.92), rgba(255,239,247,0.9));
+        display: grid;
+        grid-template-columns: auto 1fr;
+        align-items: center;
+        gap: 18px;
+        background: rgba(255, 255, 255, 0.72);
+        backdrop-filter: blur(16px);
         border: 1px solid var(--line);
         border-radius: 22px;
-        padding: 30px 32px 28px;
-        margin-bottom: 18px;
+        padding: 16px 20px;
+        margin-bottom: 12px;
         box-shadow: var(--shadow);
-        text-align: center;
     }
 
     .app-hero:after {
         content: "";
         position: absolute;
-        right: -90px;
-        top: -120px;
-        width: 300px;
-        height: 300px;
-        background: radial-gradient(circle, rgba(242,106,162,0.18), transparent 66%);
+        right: -120px;
+        top: -150px;
+        width: 320px;
+        height: 320px;
+        background: radial-gradient(circle, rgba(239, 111, 159, 0.15), transparent 64%);
+        pointer-events: none;
     }
 
     .app-hero > * {
@@ -91,138 +99,143 @@ st.markdown("""
 
     .hero-logo {
         display: block;
-        width: min(218px, 46vw);
-        height: auto;
-        margin: -4px auto 8px;
-        filter: drop-shadow(0 16px 28px rgba(219, 75, 135, 0.18));
+        width: 74px;
+        height: 74px;
+        object-fit: contain;
+        filter: drop-shadow(0 10px 16px rgba(217, 79, 134, 0.18));
     }
 
     .hero-kicker {
-        color: var(--pink-500);
-        font-size: 0.86rem;
-        font-weight: 700;
-        letter-spacing: 0;
-        margin-bottom: 8px;
+        color: var(--pink-600);
+        font-size: 0.74rem;
+        font-weight: 800;
+        letter-spacing: .08em !important;
+        margin-bottom: 3px;
     }
 
     .hero-title {
         color: var(--ink);
-        font-size: 2.25rem;
-        line-height: 1.15;
-        font-weight: 800;
+        font-size: 1.62rem;
+        line-height: 1.12;
+        font-weight: 850;
         margin: 0;
     }
 
     .hero-subtitle {
         color: var(--muted);
-        max-width: 720px;
-        margin: 10px auto 0;
-        line-height: 1.75;
-        font-size: 1rem;
+        max-width: 820px;
+        margin: 5px 0 0;
+        line-height: 1.55;
+        font-size: 0.92rem;
     }
 
     .guide-card {
-        background: var(--panel);
+        background: rgba(255,255,255,0.62);
         border: 1px solid var(--line);
         border-radius: 18px;
-        padding: 18px 20px;
-        margin: 12px 0 24px;
-        box-shadow: 0 10px 28px rgba(177, 77, 116, 0.09);
+        padding: 12px 14px;
+        margin: 8px 0 12px;
+        box-shadow: 0 8px 22px rgba(177, 77, 116, 0.08);
     }
 
     .guide-title {
-        color: var(--pink-500);
-        font-weight: 800;
-        margin-bottom: 12px;
+        color: var(--pink-600);
+        font-weight: 850;
+        margin-bottom: 8px;
+        font-size: 0.96rem;
     }
 
     .guide-grid {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 10px;
+        gap: 8px;
     }
 
     .guide-step {
-        min-height: 74px;
-        background: #fff9fc;
-        border: 1px solid rgba(255, 199, 218, 0.72);
-        border-radius: 14px;
-        padding: 12px 14px;
+        min-height: 54px;
+        background: #fffafd;
+        border: 1px solid rgba(255, 200, 220, 0.74);
+        border-radius: 13px;
+        padding: 9px 10px;
         color: var(--muted);
-        line-height: 1.55;
+        line-height: 1.42;
+        font-size: 0.86rem;
     }
 
     .guide-step b {
         display: block;
         color: var(--ink);
-        margin-bottom: 3px;
+        margin-bottom: 2px;
+        font-size: 0.88rem;
     }
 
     .hint-card {
-        background: rgba(255, 249, 252, 0.92);
-        border: 1px solid rgba(219, 75, 135, 0.16);
+        background: rgba(255, 250, 253, 0.92);
+        border: 1px solid rgba(217, 79, 134, 0.13);
         border-left: 4px solid var(--pink-400);
-        border-radius: 14px;
-        padding: 12px 14px;
-        margin: 8px 0 14px;
+        border-radius: 13px;
+        padding: 9px 11px;
+        margin: 6px 0 10px;
         color: var(--muted);
-        line-height: 1.7;
+        line-height: 1.55;
+        font-size: 0.88rem;
     }
 
-    .hint-card b {
-        color: var(--ink);
-    }
+    .hint-card b { color: var(--ink); }
 
     .field-grid {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 10px;
-        margin-top: 10px;
+        gap: 8px;
+        margin-top: 8px;
     }
 
     .field-box {
         background: #fffafd;
-        border: 1px solid rgba(255, 199, 218, 0.72);
+        border: 1px solid rgba(255, 200, 220, 0.72);
         border-radius: 12px;
-        padding: 11px 12px;
-        min-height: 92px;
+        padding: 9px 10px;
+        min-height: 68px;
         color: var(--muted);
-        line-height: 1.65;
+        line-height: 1.48;
+        font-size: 0.84rem;
     }
 
     .field-box b {
         display: block;
-        color: var(--pink-500);
+        color: var(--pink-600);
         margin-bottom: 4px;
     }
 
     .field-box code {
-        background: rgba(255, 225, 236, 0.66);
+        background: rgba(255, 228, 238, 0.76);
         color: var(--ink);
-        border-radius: 6px;
+        border-radius: 7px;
         padding: 1px 5px;
-        font-size: 0.86rem;
+        font-size: 0.78rem;
+        display: inline-block;
+        margin: 1px 2px 2px 0;
     }
 
     .section-title {
         display: flex;
         align-items: center;
-        gap: 12px;
-        margin: 28px 0 12px;
+        gap: 10px;
+        margin: 16px 0 8px;
     }
 
     .section-title .dot {
-        width: 10px;
-        height: 28px;
+        width: 8px;
+        height: 22px;
         border-radius: 999px;
-        background: linear-gradient(180deg, var(--pink-400), var(--pink-200));
-        box-shadow: 0 8px 18px rgba(242, 106, 162, 0.28);
+        background: linear-gradient(180deg, var(--pink-500), var(--pink-200));
+        box-shadow: 0 8px 18px rgba(239, 111, 159, 0.24);
     }
 
     .section-title h2 {
         color: var(--ink) !important;
-        font-size: 1.18rem !important;
-        line-height: 1.35;
+        font-size: 1.02rem !important;
+        line-height: 1.25;
         margin: 0 !important;
         padding: 0 !important;
         border: 0 !important;
@@ -230,75 +243,83 @@ st.markdown("""
 
     .section-title p {
         color: var(--muted);
-        margin: 2px 0 0;
-        font-size: 0.92rem;
+        margin: 1px 0 0;
+        font-size: 0.82rem;
     }
 
     h1, h2, h3, h4, p, span, div, label {
         letter-spacing: 0 !important;
     }
 
-    h1 {
-        color: var(--ink) !important;
-    }
-
-    h2, h3, h4 {
-        color: var(--ink) !important;
-    }
+    h1, h2, h3, h4 { color: var(--ink) !important; }
 
     .stFileUploader, .stSelectbox, .stMultiSelect, .stDateInput, .stCheckbox, .stRadio {
-        background: rgba(255, 255, 255, 0.72);
+        background: rgba(255, 255, 255, 0.68);
         border: 1px solid var(--line);
         border-radius: 16px;
-        padding: 12px 14px;
-        box-shadow: 0 8px 24px rgba(177, 77, 116, 0.07);
+        padding: 8px 10px;
+        box-shadow: 0 6px 18px rgba(177, 77, 116, 0.06);
     }
 
     .stFileUploader:hover, .stSelectbox:hover, .stMultiSelect:hover, .stDateInput:hover {
-        border-color: rgba(219, 75, 135, 0.42);
-        box-shadow: 0 10px 28px rgba(177, 77, 116, 0.12);
+        border-color: rgba(217, 79, 134, 0.38);
+        box-shadow: 0 8px 22px rgba(177, 77, 116, 0.10);
     }
 
     .stFileUploader label, .stSelectbox label, .stMultiSelect label, .stDateInput label, .stCheckbox label, .stRadio label {
         color: var(--ink) !important;
-        font-weight: 700;
+        font-weight: 750;
+        font-size: 0.9rem;
+    }
+
+    div[data-testid="stFileUploaderDropzone"] {
+        min-height: 74px !important;
+        border-radius: 14px !important;
+        border-color: rgba(217, 79, 134, 0.20) !important;
+        background: #fffafd !important;
+        padding: 8px !important;
+    }
+
+    div[data-testid="stFileUploaderDropzone"] section {
+        padding: 0.35rem !important;
+    }
+
+    div[data-testid="stFileUploaderDropzone"] small {
+        display: none !important;
+    }
+
+    div[data-baseweb="select"] > div,
+    div[data-baseweb="input"] > div {
+        border-radius: 12px !important;
+        border-color: rgba(217, 79, 134, 0.22) !important;
+        background-color: rgba(255,255,255,0.94) !important;
+        min-height: 38px !important;
     }
 
     .stButton > button, .stDownloadButton > button {
         width: 100%;
-        min-height: 46px;
+        min-height: 44px;
         border: 0 !important;
         border-radius: 999px !important;
-        background: linear-gradient(135deg, var(--pink-500), var(--pink-400)) !important;
+        background: linear-gradient(135deg, var(--pink-600), var(--pink-400)) !important;
         color: white !important;
-        font-weight: 800 !important;
-        box-shadow: 0 12px 28px rgba(219, 75, 135, 0.26);
+        font-weight: 850 !important;
+        box-shadow: 0 12px 26px rgba(217, 79, 134, 0.25);
         transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease;
     }
 
     .stButton > button:hover, .stDownloadButton > button:hover {
         transform: translateY(-1px);
         filter: brightness(1.02);
-        box-shadow: 0 16px 34px rgba(219, 75, 135, 0.32);
+        box-shadow: 0 16px 34px rgba(217, 79, 134, 0.30);
     }
 
     .stAlert {
         border-radius: 14px !important;
         border: 1px solid var(--line) !important;
-        background: rgba(255, 248, 251, 0.92) !important;
+        background: rgba(255, 250, 253, 0.92) !important;
         color: var(--ink) !important;
-    }
-
-    div[data-baseweb="select"] > div,
-    div[data-baseweb="input"] > div {
-        border-radius: 12px !important;
-        border-color: rgba(219, 75, 135, 0.22) !important;
-    }
-
-    div[data-testid="stFileUploaderDropzone"] {
-        border-radius: 14px !important;
-        border-color: rgba(219, 75, 135, 0.24) !important;
-        background: #fffafd !important;
+        padding: 0.75rem 1rem !important;
     }
 
     .stDataFrame {
@@ -307,16 +328,36 @@ st.markdown("""
         overflow: hidden;
     }
 
-    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    details {
+        background: rgba(255,255,255,0.46);
+        border: 1px dashed rgba(217,79,134,0.20);
+        border-radius: 13px;
+        padding: 8px 10px;
+        margin-bottom: 8px;
+    }
+
+    summary {
+        list-style: none;
+    }
+
+    summary::-webkit-details-marker { display: none; }
+
+    div[data-testid="stVerticalBlock"] { gap: 0.55rem; }
+
+    ::-webkit-scrollbar { width: 9px; height: 9px; }
     ::-webkit-scrollbar-track { background: var(--pink-50); }
     ::-webkit-scrollbar-thumb { background: var(--pink-200); border-radius: 999px; }
     ::-webkit-scrollbar-thumb:hover { background: var(--pink-400); }
 
     @media (max-width: 760px) {
-        .block-container { padding-top: 1rem; }
-        .app-hero { padding: 22px 20px; border-radius: 18px; }
-        .hero-logo { width: min(176px, 58vw); }
-        .hero-title { font-size: 1.72rem; }
+        .block-container { padding-top: 0.8rem; }
+        .app-hero {
+            grid-template-columns: 1fr;
+            text-align: center;
+            padding: 16px;
+        }
+        .hero-logo { width: 78px; height: 78px; margin: 0 auto; }
+        .hero-title { font-size: 1.42rem; }
         .guide-grid { grid-template-columns: 1fr; }
         .field-grid { grid-template-columns: 1fr; }
     }
@@ -385,9 +426,11 @@ logo_html = f'<img class="hero-logo" src="{top_logo_uri}" alt="JENNY logo">' if 
 st.markdown(f"""
 <div class="app-hero">
     {logo_html}
-    <div class="hero-kicker">JENNY BILL RECONCILIATION</div>
-    <h1 class="hero-title">JENNY 对账机器人</h1>
-    <p class="hero-subtitle">上传账单和客户档案，按平台、渠道、客户和时间快速整理差异，生成可下载的 Excel 报告。</p>
+    <div>
+        <div class="hero-kicker">JENNY FINANCE WORKSPACE</div>
+        <h1 class="hero-title">JENNY 对账机器人</h1>
+        <p class="hero-subtitle">粉色系高级财务工具台｜上传账单、筛选范围、自动核对、导出 Excel 报告。</p>
+    </div>
 </div>
 """, unsafe_allow_html=True)
 
