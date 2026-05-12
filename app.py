@@ -3,12 +3,31 @@ import pandas as pd
 import numpy as np
 import io
 import warnings
+import base64
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
+from pathlib import Path
+from PIL import Image
 
 warnings.filterwarnings('ignore')
 
-st.set_page_config(page_title="🌸 JENNY对账机器人", layout="wide")
+APP_DIR = Path(__file__).resolve().parent
+ASSET_DIR = APP_DIR / "assets"
+TOP_LOGO_PATH = ASSET_DIR / "top-logo.png"
+PAGE_ICON_PATH = ASSET_DIR / "favicon.png"
+
+try:
+    page_icon = Image.open(PAGE_ICON_PATH) if PAGE_ICON_PATH.exists() else None
+except Exception:
+    page_icon = None
+
+st.set_page_config(page_title="JENNY对账机器人", page_icon=page_icon, layout="wide")
+
+def image_data_uri(path):
+    if not path.exists():
+        return ""
+    encoded = base64.b64encode(path.read_bytes()).decode("utf-8")
+    return f"data:image/png;base64,{encoded}"
 
 # ========== 粉色系简洁主题（全局） ==========
 st.markdown("""
@@ -49,9 +68,10 @@ st.markdown("""
         background: linear-gradient(135deg, rgba(255,255,255,0.92), rgba(255,239,247,0.9));
         border: 1px solid var(--line);
         border-radius: 22px;
-        padding: 28px 32px;
+        padding: 30px 32px 28px;
         margin-bottom: 18px;
         box-shadow: var(--shadow);
+        text-align: center;
     }
 
     .app-hero:after {
@@ -62,6 +82,19 @@ st.markdown("""
         width: 300px;
         height: 300px;
         background: radial-gradient(circle, rgba(242,106,162,0.18), transparent 66%);
+    }
+
+    .app-hero > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .hero-logo {
+        display: block;
+        width: min(218px, 46vw);
+        height: auto;
+        margin: -4px auto 8px;
+        filter: drop-shadow(0 16px 28px rgba(219, 75, 135, 0.18));
     }
 
     .hero-kicker {
@@ -83,7 +116,7 @@ st.markdown("""
     .hero-subtitle {
         color: var(--muted);
         max-width: 720px;
-        margin: 10px 0 0 0;
+        margin: 10px auto 0;
         line-height: 1.75;
         font-size: 1rem;
     }
@@ -282,6 +315,7 @@ st.markdown("""
     @media (max-width: 760px) {
         .block-container { padding-top: 1rem; }
         .app-hero { padding: 22px 20px; border-radius: 18px; }
+        .hero-logo { width: min(176px, 58vw); }
         .hero-title { font-size: 1.72rem; }
         .guide-grid { grid-template-columns: 1fr; }
         .field-grid { grid-template-columns: 1fr; }
@@ -345,8 +379,12 @@ def field_requirements(title, required, optional=None, aliases=None, note=None):
         unsafe_allow_html=True,
     )
 
-st.markdown("""
+top_logo_uri = image_data_uri(TOP_LOGO_PATH)
+logo_html = f'<img class="hero-logo" src="{top_logo_uri}" alt="JENNY logo">' if top_logo_uri else ""
+
+st.markdown(f"""
 <div class="app-hero">
+    {logo_html}
     <div class="hero-kicker">JENNY BILL RECONCILIATION</div>
     <h1 class="hero-title">JENNY 对账机器人</h1>
     <p class="hero-subtitle">上传账单和客户档案，按平台、渠道、客户和时间快速整理差异，生成可下载的 Excel 报告。</p>
@@ -1248,6 +1286,20 @@ if work_mode == "财务系统-日记账对账":
                 missing_in_s = journal
                 amt_diff = typ_diff = pd.DataFrame()
 
+            debug_frames = []
+            sys_debug_cols = [c for c in ['_原始账号ID', '账号ID', '账号名称', '_原始时间', '时间', '_匹配时间', '类型', '金额', '所属平台', '渠道', '客户', '主键'] if c in sys_df.columns]
+            if sys_debug_cols:
+                sys_debug = sys_df[sys_debug_cols].copy()
+                sys_debug.insert(0, '来源', '系统账')
+                debug_frames.append(sys_debug)
+            if not journal.empty:
+                jnl_debug_cols = [c for c in ['_原始账号ID', '账号ID', '账号名称', '_原始时间', '时间', '_匹配时间', '类型', '金额', '来源平台', '渠道', '客户', '主键'] if c in journal.columns]
+                if jnl_debug_cols:
+                    jnl_debug = journal[jnl_debug_cols].copy()
+                    jnl_debug.insert(0, '来源', '日记账')
+                    debug_frames.append(jnl_debug)
+            debug_detail = pd.concat(debug_frames, ignore_index=True) if debug_frames else pd.DataFrame()
+
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine='openpyxl') as writer:
                 summary = pd.DataFrame({
@@ -1264,6 +1316,7 @@ if work_mode == "财务系统-日记账对账":
                 sys_dup.to_excel(writer, sheet_name="5.系统重复", index=False)
                 jnl_dup.to_excel(writer, sheet_name="6.日记账重复", index=False)
                 duplicate_customer_issue.to_excel(writer, sheet_name="7.客户分配重复", index=False)
+                debug_detail.to_excel(writer, sheet_name="调试明细", index=False)
 
             today_str = datetime.today().strftime("%Y%m%d")
             client_str = "_".join(selected_clients) if selected_clients else "全部客户"
