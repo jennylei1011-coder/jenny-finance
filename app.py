@@ -382,7 +382,7 @@ if work_mode == "财务系统-日记账对账":
         required=["账号ID", "账号名称"],
         optional=["渠道", "客户"],
         aliases=["广告账户", "账户ID", "meta_id", "account_id", "账户名称", "account_name", "归属广告主", "广告主"],
-        note="FB 和 TT 客户档案都需要上传；如果同一个账号ID被分配给多个客户，报告会在“客户分配重复”中列出并提示核实。",
+        note="按本次对账平台上传对应档案：仅 Facebook 可只传 FB，仅 TikTok 可只传 TT，全部平台需要两份都上传；重复分配会在报告中列出并提示核实。",
     )
 
     col_cus1, col_cus2 = st.columns(2)
@@ -536,6 +536,9 @@ if work_mode == "财务系统-日记账对账":
         st.info(f"正在使用上一次上传的 TT 客户档案（{len(tt_customers)} 条）")
     else:
         tt_customers = None
+
+    def empty_customer_frame():
+        return pd.DataFrame(columns=['账号ID', '账号名称', '渠道', '客户'])
 
     # ========== 系统账单上传区 ==========
     section_title("系统账单", "支持多文件、多工作表 Excel。")
@@ -803,12 +806,26 @@ if work_mode == "财务系统-日记账对账":
                 del st.session_state[key]
         if not system_files:
             st.error("❌ 请上传系统账单！")
-        elif fb_customers is None or tt_customers is None:
-            st.error("❌ 请先上传 FB 和 TT 客户档案！")
+        elif platform_scope == "全部平台" and (fb_customers is None or tt_customers is None):
+            st.error("❌ 当前选择“全部平台”，请同时上传 FB 和 TT 客户档案！")
+        elif platform_scope == "仅 Facebook" and fb_customers is None:
+            st.error("❌ 当前选择“仅 Facebook”，请先上传 FB 客户档案！")
+        elif platform_scope == "仅 TikTok" and tt_customers is None:
+            st.error("❌ 当前选择“仅 TikTok”，请先上传 TT 客户档案！")
         elif not fb_journal_files and not tt_journal_files:
             st.error("❌ 请至少上传一个日记账文件！")
         else:
             with st.spinner('🍬 JENNY正在核对，请稍候...'):
+                if platform_scope == "仅 Facebook":
+                    active_fb_customers = fb_customers if fb_customers is not None else empty_customer_frame()
+                    active_tt_customers = empty_customer_frame()
+                elif platform_scope == "仅 TikTok":
+                    active_fb_customers = empty_customer_frame()
+                    active_tt_customers = tt_customers if tt_customers is not None else empty_customer_frame()
+                else:
+                    active_fb_customers = fb_customers if fb_customers is not None else empty_customer_frame()
+                    active_tt_customers = tt_customers if tt_customers is not None else empty_customer_frame()
+
                 def find_duplicate_customer_assignments(*customer_frames):
                     records = {}
                     for platform_label, customer_df in customer_frames:
@@ -845,8 +862,8 @@ if work_mode == "财务系统-日记账对账":
                     return pd.DataFrame(duplicate_rows)
 
                 duplicate_assignments = find_duplicate_customer_assignments(
-                    ('FB', fb_customers),
-                    ('TT', tt_customers)
+                    ('FB', active_fb_customers),
+                    ('TT', active_tt_customers)
                 )
                 duplicate_ids = set()
                 duplicate_name_keys = set()
@@ -860,7 +877,7 @@ if work_mode == "财务系统-日记账对账":
 
                 fb_dict = {}
                 fb_name_dict = {}
-                for _, row in fb_customers.iterrows():
+                for _, row in active_fb_customers.iterrows():
                     cid = normalize_id_text(row['账号ID'])
                     cname = str(row['账号名称']).strip()
                     channel = str(row.get('渠道', '')).strip()
@@ -876,7 +893,7 @@ if work_mode == "财务系统-日记账对账":
                             fb_name_dict[name_key] = new_info
                 tt_dict = {}
                 tt_name_dict = {}
-                for _, row in tt_customers.iterrows():
+                for _, row in active_tt_customers.iterrows():
                     cid = normalize_id_text(row['账号ID'])
                     cname = str(row['账号名称']).strip()
                     channel = str(row.get('渠道', '')).strip()
