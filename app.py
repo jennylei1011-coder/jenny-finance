@@ -957,110 +957,110 @@ if work_mode == "财务系统-日记账对账":
                         else:
                             df['金额'] = 0.0
 
-                def gen_key_sys(row):
-                    plat = row['所属平台']
-                    acc_id = normalize_id_text(row['账号ID'])
-                    time_val = str(row.get('_匹配时间', row.get('时间', ''))).strip()
-                    tx_id = str(row.get('交易号', '')).strip()
-                    if plat == 'FB':
-                        if acc_id and time_val:
-                            return f"{acc_id}_{time_val}"
-                        else:
-                            return f"FB残缺_{np.random.randint(10000,99999)}"
+            def gen_key_sys(row):
+                plat = row['所属平台']
+                acc_id = normalize_id_text(row['账号ID'])
+                time_val = str(row.get('_匹配时间', row.get('时间', ''))).strip()
+                tx_id = str(row.get('交易号', '')).strip()
+                if plat == 'FB':
+                    if acc_id and time_val:
+                        return f"{acc_id}_{time_val}"
                     else:
-                        if tx_id:
-                            return tx_id
-                        elif acc_id and time_val:
-                            return f"{acc_id}_{time_val}"
-                        else:
-                            return f"TT残缺_{np.random.randint(10000,99999)}"
-
-                def gen_key_jnl(row):
-                    src = row['来源平台']
-                    acc_id = normalize_id_text(row['账号ID'])
-                    time_val = str(row.get('_匹配时间', row.get('时间', ''))).strip()
-                    tx_id = str(row.get('交易号', '')).strip()
-                    if src == 'FB日记账':
-                        if acc_id and time_val:
-                            return f"{acc_id}_{time_val}"
-                        else:
-                            return f"FB残缺_{np.random.randint(10000,99999)}"
+                        return f"FB残缺_{np.random.randint(10000,99999)}"
+                else:
+                    if tx_id:
+                        return tx_id
+                    elif acc_id and time_val:
+                        return f"{acc_id}_{time_val}"
                     else:
-                        if tx_id:
-                            return tx_id
-                        elif acc_id and time_val:
-                            return f"{acc_id}_{time_val}"
-                        else:
-                            return f"TT残缺_{np.random.randint(10000,99999)}"
+                        return f"TT残缺_{np.random.randint(10000,99999)}"
 
-                sys_df['主键'] = sys_df.apply(gen_key_sys, axis=1)
-                if not journal.empty:
-                    journal['主键'] = journal.apply(gen_key_jnl, axis=1)
-
-                if not journal.empty:
-                    sys_dup = sys_df[sys_df.duplicated('主键', keep=False)]
-                    jnl_dup = journal[journal.duplicated('主键', keep=False)]
-                    missing_in_j = sys_df[~sys_df['主键'].isin(journal['主键'])]
-                    missing_in_s = journal[~journal['主键'].isin(sys_df['主键'])]
-                    sys_u = sys_df.drop_duplicates('主键')
-                    jnl_u = journal.drop_duplicates('主键')
-                    merged = pd.merge(sys_u, jnl_u, on='主键', suffixes=('_系统', '_日记账'), how='inner')
-
-                    def is_amount_match(row):
-                        a_sys = row['金额_系统']
-                        a_jnl = row['金额_日记账']
-                        t_sys = row['类型_系统']
-                        t_jnl = row['类型_日记账']
-                        if t_sys != t_jnl:
-                            return True
-                        if t_sys == '清零':
-                            return abs(a_sys - a_jnl) < 0.001
-                        else:
-                            return abs(a_sys - a_jnl) < 0.001
-
-                    merged['_amt_match'] = merged.apply(is_amount_match, axis=1)
-                    amt_diff = merged[~merged['_amt_match']]
-                    merged.drop(columns=['_amt_match'], inplace=True)
-
-                    typ_diff = merged[merged['类型_系统'] != merged['类型_日记账']]
+            def gen_key_jnl(row):
+                src = row['来源平台']
+                acc_id = normalize_id_text(row['账号ID'])
+                time_val = str(row.get('_匹配时间', row.get('时间', ''))).strip()
+                tx_id = str(row.get('交易号', '')).strip()
+                if src == 'FB日记账':
+                    if acc_id and time_val:
+                        return f"{acc_id}_{time_val}"
+                    else:
+                        return f"FB残缺_{np.random.randint(10000,99999)}"
                 else:
-                    sys_dup = jnl_dup = pd.DataFrame()
-                    missing_in_j = sys_df
-                    missing_in_s = journal
-                    amt_diff = typ_diff = pd.DataFrame()
+                    if tx_id:
+                        return tx_id
+                    elif acc_id and time_val:
+                        return f"{acc_id}_{time_val}"
+                    else:
+                        return f"TT残缺_{np.random.randint(10000,99999)}"
 
-                output = io.BytesIO()
-                with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                    summary = pd.DataFrame({
-                        "核查项目": ["1.漏记(系统有日记无)", "2.多记(日记有系统无)", "3.金额不符", "4.类型不符", "5.系统重复", "6.日记账重复"],
-                        "异常条数": [len(missing_in_j), len(missing_in_s), len(amt_diff), len(typ_diff), len(sys_dup), len(jnl_dup)]
-                    })
-                    summary.to_excel(writer, sheet_name="对账汇总", index=False)
-                    missing_in_j.to_excel(writer, sheet_name="1.漏记", index=False)
-                    missing_in_s.to_excel(writer, sheet_name="2.多记", index=False)
-                    if not amt_diff.empty:
-                        amt_diff[['主键','账号ID_系统','时间_系统','金额_系统','金额_日记账']].to_excel(writer, sheet_name="3.金额不符", index=False)
-                    if not typ_diff.empty:
-                        typ_diff[['主键','账号ID_系统','时间_系统','类型_系统','类型_日记账']].to_excel(writer, sheet_name="4.类型不符", index=False)
-                    sys_dup.to_excel(writer, sheet_name="5.系统重复", index=False)
-                    jnl_dup.to_excel(writer, sheet_name="6.日记账重复", index=False)
+            sys_df['主键'] = sys_df.apply(gen_key_sys, axis=1)
+            if not journal.empty:
+                journal['主键'] = journal.apply(gen_key_jnl, axis=1)
 
-                today_str = datetime.today().strftime("%Y%m%d")
-                client_str = "_".join(selected_clients) if selected_clients else "全部客户"
-                if '全部渠道' in selected_channels or not selected_channels:
-                    channel_str = "全部渠道"
-                else:
-                    channel_str = "_".join(selected_channels)
-                if platform_scope == "全部平台":
-                    plat_str = "全部平台"
-                else:
-                    plat_str = platform_scope.replace("仅 ", "")
-                report_name = f"{client_str}-{channel_str}-{plat_str}-{today_str}对账报告.xlsx"
+            if not journal.empty:
+                sys_dup = sys_df[sys_df.duplicated('主键', keep=False)]
+                jnl_dup = journal[journal.duplicated('主键', keep=False)]
+                missing_in_j = sys_df[~sys_df['主键'].isin(journal['主键'])]
+                missing_in_s = journal[~journal['主键'].isin(sys_df['主键'])]
+                sys_u = sys_df.drop_duplicates('主键')
+                jnl_u = journal.drop_duplicates('主键')
+                merged = pd.merge(sys_u, jnl_u, on='主键', suffixes=('_系统', '_日记账'), how='inner')
 
-                # 持久化存储
-                st.session_state['mode1_report_data'] = output.getvalue()
-                st.session_state['mode1_report_name'] = report_name
-                st.session_state['mode1_success'] = "🎉 对账完成！请下载报告～"
+                def is_amount_match(row):
+                    a_sys = row['金额_系统']
+                    a_jnl = row['金额_日记账']
+                    t_sys = row['类型_系统']
+                    t_jnl = row['类型_日记账']
+                    if t_sys != t_jnl:
+                        return True
+                    if t_sys == '清零':
+                        return abs(a_sys - a_jnl) < 0.001
+                    else:
+                        return abs(a_sys - a_jnl) < 0.001
+
+                merged['_amt_match'] = merged.apply(is_amount_match, axis=1)
+                amt_diff = merged[~merged['_amt_match']]
+                merged.drop(columns=['_amt_match'], inplace=True)
+
+                typ_diff = merged[merged['类型_系统'] != merged['类型_日记账']]
+            else:
+                sys_dup = jnl_dup = pd.DataFrame()
+                missing_in_j = sys_df
+                missing_in_s = journal
+                amt_diff = typ_diff = pd.DataFrame()
+
+            output = io.BytesIO()
+            with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                summary = pd.DataFrame({
+                    "核查项目": ["1.漏记(系统有日记无)", "2.多记(日记有系统无)", "3.金额不符", "4.类型不符", "5.系统重复", "6.日记账重复"],
+                    "异常条数": [len(missing_in_j), len(missing_in_s), len(amt_diff), len(typ_diff), len(sys_dup), len(jnl_dup)]
+                })
+                summary.to_excel(writer, sheet_name="对账汇总", index=False)
+                missing_in_j.to_excel(writer, sheet_name="1.漏记", index=False)
+                missing_in_s.to_excel(writer, sheet_name="2.多记", index=False)
+                if not amt_diff.empty:
+                    amt_diff[['主键','账号ID_系统','时间_系统','金额_系统','金额_日记账']].to_excel(writer, sheet_name="3.金额不符", index=False)
+                if not typ_diff.empty:
+                    typ_diff[['主键','账号ID_系统','时间_系统','类型_系统','类型_日记账']].to_excel(writer, sheet_name="4.类型不符", index=False)
+                sys_dup.to_excel(writer, sheet_name="5.系统重复", index=False)
+                jnl_dup.to_excel(writer, sheet_name="6.日记账重复", index=False)
+
+            today_str = datetime.today().strftime("%Y%m%d")
+            client_str = "_".join(selected_clients) if selected_clients else "全部客户"
+            if '全部渠道' in selected_channels or not selected_channels:
+                channel_str = "全部渠道"
+            else:
+                channel_str = "_".join(selected_channels)
+            if platform_scope == "全部平台":
+                plat_str = "全部平台"
+            else:
+                plat_str = platform_scope.replace("仅 ", "")
+            report_name = f"{client_str}-{channel_str}-{plat_str}-{today_str}对账报告.xlsx"
+
+            # 持久化存储
+            st.session_state['mode1_report_data'] = output.getvalue()
+            st.session_state['mode1_report_name'] = report_name
+            st.session_state['mode1_success'] = "🎉 对账完成！请下载报告～"
 
     # ========== 显示持久化的下载按钮 ==========
     if 'mode1_report_data' in st.session_state:
