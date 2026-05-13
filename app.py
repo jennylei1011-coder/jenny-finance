@@ -30,12 +30,12 @@ def image_data_uri(path):
     encoded = base64.b64encode(path.read_bytes()).decode("utf-8")
     return f"data:image/png;base64,{encoded}"
 
-# ========== 简约粉色财务工具主题（紧凑版） ==========
+# ========== Jenny 粉色丝带财务工具主题 ==========
 st.markdown("""
 <style>
     :root {
-        --bg: #fff7fb;
-        --panel: rgba(255, 255, 255, 0.90);
+        --bg: #fff8fb;
+        --panel: rgba(255, 255, 255, 0.88);
         --panel-solid: #ffffff;
         --pink-25: #fff8fb;
         --pink-50: #fff1f6;
@@ -45,73 +45,149 @@ st.markdown("""
         --pink-400: #ee77a5;
         --pink-500: #d94f88;
         --pink-600: #bd3f75;
+        --rose-ink: #6f2448;
+        --champagne: #fffaf0;
+        --mint: #7bbfa8;
         --ink: #372630;
         --muted: #806674;
         --soft: #a38c98;
         --line: rgba(217, 79, 136, 0.16);
-        --shadow: 0 16px 40px rgba(145, 63, 100, 0.10);
+        --shadow: 0 18px 46px rgba(145, 63, 100, 0.12);
+        --shadow-soft: 0 10px 28px rgba(145, 63, 100, 0.07);
     }
 
     .stApp {
         background:
-            radial-gradient(circle at 8% 0%, rgba(255, 202, 221, 0.48), transparent 32rem),
-            radial-gradient(circle at 92% 4%, rgba(255, 232, 241, 0.8), transparent 30rem),
+            linear-gradient(116deg, rgba(255, 205, 223, 0.28) 0 12%, transparent 12% 42%, rgba(255, 232, 240, 0.46) 42% 55%, transparent 55%),
+            repeating-linear-gradient(118deg, rgba(217, 79, 136, 0.035) 0 1px, transparent 1px 42px),
             linear-gradient(135deg, #fffbfd 0%, #fff5f9 50%, #fff0f6 100%);
+        color: var(--ink);
+        font-family: "Microsoft YaHei UI", "Segoe UI", sans-serif;
+    }
+
+    .stApp:before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        background:
+            linear-gradient(90deg, transparent 0 72%, rgba(255,255,255,0.58) 72% 73%, transparent 73%),
+            linear-gradient(180deg, rgba(255,255,255,0.40), transparent 34%);
+        opacity: 0.72;
     }
 
     .block-container {
         max-width: 1240px;
-        padding-top: 1.05rem;
-        padding-bottom: 2.4rem;
+        padding-top: 0.9rem;
+        padding-bottom: 2.5rem;
     }
 
     header[data-testid="stHeader"], footer, #MainMenu { visibility: hidden; }
 
-    /* 顶部品牌区：小 logo，不占空间，不出现白底块 */
+    @keyframes softRise {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* 顶部品牌区：大 logo + 丝带感品牌入口 */
     .brand-shell {
-        background: linear-gradient(135deg, rgba(255,255,255,0.92), rgba(255,247,251,0.92));
+        position: relative;
+        overflow: hidden;
+        background:
+            linear-gradient(120deg, rgba(255,255,255,0.96), rgba(255,247,251,0.90) 58%, rgba(255,241,246,0.96)),
+            linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,255,255,0.72));
         border: 1px solid var(--line);
-        border-radius: 22px;
+        border-radius: 24px;
         box-shadow: var(--shadow);
-        padding: 14px 18px;
-        margin-bottom: 12px;
+        padding: 18px 22px;
+        margin-bottom: 14px;
+        animation: softRise 360ms ease both;
+    }
+    .brand-shell:before {
+        content: "";
+        position: absolute;
+        left: -8%;
+        right: -8%;
+        top: 16px;
+        height: 58px;
+        transform: rotate(-4deg);
+        background: linear-gradient(90deg, transparent, rgba(238, 119, 165, 0.12), rgba(255, 255, 255, 0.12), transparent);
+    }
+    .brand-shell:after {
+        content: "";
+        position: absolute;
+        inset: auto 18px 14px 18px;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(217, 79, 136, 0.22), transparent);
     }
     .brand-row {
+        position: relative;
+        z-index: 1;
         display: flex;
         align-items: center;
-        gap: 14px;
+        gap: 18px;
     }
     .brand-logo {
-        width: 62px;
-        height: 62px;
+        width: 112px;
+        height: 112px;
         object-fit: contain;
         display: block;
-        filter: drop-shadow(0 10px 18px rgba(217, 79, 136, 0.20));
+        border-radius: 28px;
+        filter: drop-shadow(0 14px 24px rgba(217, 79, 136, 0.22));
+        flex: 0 0 auto;
+    }
+    .brand-copy {
+        min-width: 0;
+    }
+    .brand-eyebrow {
+        color: var(--rose-ink);
+        font-size: 0.78rem;
+        font-weight: 900;
+        letter-spacing: 0 !important;
+        margin-bottom: 4px;
     }
     .brand-title {
         color: var(--ink);
-        font-size: 1.55rem;
+        font-size: clamp(1.7rem, 2.2vw, 2.2rem);
         line-height: 1.15;
-        font-weight: 850;
+        font-weight: 900;
         margin: 0 0 3px 0;
         letter-spacing: 0 !important;
     }
     .brand-subtitle {
         color: var(--muted);
-        font-size: 0.92rem;
+        font-size: 0.94rem;
         line-height: 1.5;
         margin: 0;
+        max-width: 680px;
+    }
+    .brand-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 10px;
+    }
+    .brand-chip {
+        color: var(--rose-ink);
+        background: rgba(255, 227, 237, 0.64);
+        border: 1px solid rgba(217, 79, 136, 0.12);
+        border-radius: 999px;
+        padding: 5px 10px;
+        font-size: 0.78rem;
+        font-weight: 850;
     }
     .brand-badge {
         margin-left: auto;
-        color: var(--pink-600);
-        background: rgba(255, 227, 237, 0.66);
-        border: 1px solid rgba(217, 79, 136, 0.14);
-        border-radius: 999px;
-        padding: 7px 12px;
-        font-size: 0.82rem;
-        font-weight: 800;
+        align-self: flex-start;
+        color: #5f5140;
+        background: linear-gradient(135deg, var(--champagne), #fff2f7);
+        border: 1px solid rgba(217, 79, 136, 0.16);
+        border-radius: 14px;
+        padding: 9px 12px;
+        font-size: 0.80rem;
+        font-weight: 900;
         white-space: nowrap;
+        box-shadow: var(--shadow-soft);
     }
 
     .mode-title {
@@ -128,7 +204,8 @@ st.markdown("""
         border-radius: 16px;
         padding: 6px;
         gap: 8px;
-        box-shadow: 0 8px 24px rgba(145, 63, 100, 0.06);
+        box-shadow: var(--shadow-soft);
+        animation: softRise 420ms ease 80ms both;
     }
     div[role="radiogroup"] label {
         background: #fffafd;
@@ -155,12 +232,13 @@ st.markdown("""
 
     /* 简洁步骤提示 */
     .guide-card {
-        background: rgba(255, 255, 255, 0.72);
+        background: rgba(255, 255, 255, 0.76);
         border: 1px solid var(--line);
         border-radius: 18px;
         padding: 12px 14px;
         margin: 10px 0 14px;
-        box-shadow: 0 10px 26px rgba(145, 63, 100, 0.06);
+        box-shadow: var(--shadow-soft);
+        animation: softRise 420ms ease 120ms both;
     }
     .guide-title {
         color: var(--pink-600);
@@ -182,6 +260,12 @@ st.markdown("""
         color: var(--muted);
         line-height: 1.35;
         font-size: 0.86rem;
+        transition: transform 150ms ease, border-color 150ms ease, background 150ms ease;
+    }
+    .guide-step:hover {
+        transform: translateY(-1px);
+        border-color: rgba(217, 79, 136, 0.28);
+        background: #fff6fa;
     }
     .guide-step b {
         display: block;
@@ -210,10 +294,10 @@ st.markdown("""
         margin: 16px 0 8px;
     }
     .section-title .dot {
-        width: 8px;
+        width: 7px;
         height: 22px;
         border-radius: 999px;
-        background: linear-gradient(180deg, var(--pink-500), var(--pink-200));
+        background: linear-gradient(180deg, var(--pink-500), var(--pink-200), var(--mint));
         box-shadow: 0 8px 18px rgba(217, 79, 136, 0.20);
         flex: 0 0 auto;
     }
@@ -283,11 +367,12 @@ st.markdown("""
 
     /* Streamlit 表单控件紧凑化 */
     .stFileUploader, .stSelectbox, .stMultiSelect, .stDateInput, .stCheckbox, .stRadio {
-        background: rgba(255, 255, 255, 0.70);
+        background:
+            linear-gradient(180deg, rgba(255,255,255,0.78), rgba(255,250,253,0.72));
         border: 1px solid var(--line);
         border-radius: 15px;
         padding: 10px 12px;
-        box-shadow: 0 8px 22px rgba(145, 63, 100, 0.055);
+        box-shadow: var(--shadow-soft);
         min-height: 72px;
     }
     .stCheckbox {
@@ -306,8 +391,10 @@ st.markdown("""
     }
     div[data-testid="stFileUploaderDropzone"] {
         border-radius: 13px !important;
-        border-color: rgba(217, 79, 136, 0.22) !important;
-        background: #fffafd !important;
+        border-color: rgba(217, 79, 136, 0.24) !important;
+        background:
+            repeating-linear-gradient(135deg, rgba(255, 227, 237, 0.28) 0 8px, transparent 8px 16px),
+            #fffafd !important;
         padding: 10px !important;
         min-height: 78px !important;
     }
@@ -333,11 +420,24 @@ st.markdown("""
         font-weight: 850 !important;
         box-shadow: 0 12px 26px rgba(217, 79, 136, 0.24);
         transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+        position: relative;
+        overflow: hidden;
+    }
+    .stButton > button:before, .stDownloadButton > button:before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(110deg, transparent 0 35%, rgba(255,255,255,0.24) 45%, transparent 56%);
+        transform: translateX(-110%);
+        transition: transform 420ms ease;
     }
     .stButton > button:hover, .stDownloadButton > button:hover {
         transform: translateY(-1px);
         filter: brightness(1.02);
         box-shadow: 0 16px 32px rgba(217, 79, 136, 0.30);
+    }
+    .stButton > button:hover:before, .stDownloadButton > button:hover:before {
+        transform: translateX(110%);
     }
 
     .stAlert {
@@ -365,9 +465,11 @@ st.markdown("""
         .block-container { padding-top: 0.8rem; }
         .brand-shell { padding: 12px 14px; border-radius: 18px; }
         .brand-row { align-items: flex-start; gap: 10px; }
-        .brand-logo { width: 50px; height: 50px; }
+        .brand-logo { width: 64px; height: 64px; border-radius: 18px; }
         .brand-title { font-size: 1.30rem; }
         .brand-subtitle { font-size: 0.84rem; }
+        .brand-meta { gap: 6px; }
+        .brand-chip { font-size: 0.72rem; padding: 4px 8px; }
         .brand-badge { display: none; }
         .guide-grid { grid-template-columns: 1fr; }
         .field-grid { grid-template-columns: 1fr; }
@@ -438,11 +540,17 @@ st.markdown(f"""
 <div class="brand-shell">
     <div class="brand-row">
         {logo_html}
-        <div>
+        <div class="brand-copy">
+            <div class="brand-eyebrow">JENNY BILL RECONCILIATION</div>
             <h1 class="brand-title">JENNY 对账机器人</h1>
             <p class="brand-subtitle">上传账单和客户档案，快速核对漏记、多记、金额差异和客户分配异常。</p>
+            <div class="brand-meta">
+                <span class="brand-chip">系统账</span>
+                <span class="brand-chip">日记账</span>
+                <span class="brand-chip">消耗清洗</span>
+            </div>
         </div>
-        <div class="brand-badge">Excel · 财务对账</div>
+        <div class="brand-badge">Excel 报告</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
